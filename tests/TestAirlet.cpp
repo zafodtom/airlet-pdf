@@ -106,6 +106,12 @@ class TestAirlet final : public QObject {
                 process.waitForFinished();
                 return -998;
             }
+            if (process.exitCode() != 0 || process.exitStatus() != QProcess::NormalExit) {
+                qWarning().noquote() << "Export worker status:" << process.exitStatus()
+                                     << "exit code:" << process.exitCode()
+                                     << "stdout:" << process.readAllStandardOutput()
+                                     << "stderr:" << process.readAllStandardError();
+            }
             return process.exitCode();
         };
         QCOMPARE(run(job), 0);

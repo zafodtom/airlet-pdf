@@ -124,9 +124,12 @@ int runExportWorker(int argc, char **argv) {
         if (!writer.write(image))
             return fail(writer.errorString());
         file.close();
-        // QFile::rename refuses existing targets; no original or earlier export is replaced.
-        if (!QFile::rename(file.fileName(), name(p)))
-            return fail(QStringLiteral("Výstup nelze dokončit nebo již existuje: %1").arg(name(p)));
+        // Use the owning QTemporaryFile: close() can retain its native handle.
+        // Its rename closes that handle and refuses existing targets.
+        if (!file.rename(name(p)))
+            return fail(
+                QStringLiteral("Výstup nelze dokončit: %1 (%2)").arg(name(p), file.errorString()));
+        file.setAutoRemove(false);
         ++done;
         send({{"completed", done}, {"total", pages.size()}, {"file", name(p)}});
     }

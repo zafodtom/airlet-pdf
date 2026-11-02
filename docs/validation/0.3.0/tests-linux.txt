@@ -1,6 +1,10 @@
 ********* Start testing of TestAirlet *********
 Config: Using QtTest library 6.4.2, Qt 6.4.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 13.2.0), ubuntu 24.04
 PASS   : TestAirlet::initTestCase()
+QWARN  : TestAirlet::exportWorkerIntegration() Export worker status: QProcess::NormalExit exit code: 1 stdout: {"error":"Soubor už existuje: basic_001.png. Vyberte jinou složku nebo přesuňte původní export."}
+ stderr:
+QWARN  : TestAirlet::exportWorkerIntegration() Export worker status: QProcess::NormalExit exit code: 1 stdout: {"error":"Neplatný rozsah stran. Použijte například 1–5, 8, 12."}
+ stderr:
 PASS   : TestAirlet::exportWorkerIntegration()
 PASS   : TestAirlet::exportRanges()
 PASS   : TestAirlet::coordinates(-4)
@@ -26,7 +30,7 @@ PASS   : TestAirlet::scannedHasNoText()
 PASS   : TestAirlet::cacheBound()
 PASS   : TestAirlet::serviceReplacementAndIdle()
 PASS   : TestAirlet::cancelInFlightAndJoin()
-QINFO  : TestAirlet::viewZoomScrollCloseAndIdle() idle_process_cpu_ms_over_500ms=0.115
+QINFO  : TestAirlet::viewZoomScrollCloseAndIdle() idle_process_cpu_ms_over_500ms=0.106
 PASS   : TestAirlet::viewZoomScrollCloseAndIdle()
 QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
 QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
@@ -64,5 +68,5 @@ PASS   : TestAirlet::lazyTextAndCropService()
 PASS   : TestAirlet::cancelAreaOnDocumentChange()
 PASS   : TestAirlet::imageSaveAtomicAndOriginalProtection()
 PASS   : TestAirlet::cleanupTestCase()
-Totals: 57 passed, 0 failed, 0 skipped, 0 blacklisted, 4886ms
+Totals: 57 passed, 0 failed, 0 skipped, 0 blacklisted, 5180ms
 ********* Finished testing of TestAirlet *********
