@@ -1,4 +1,3 @@
-#include "export/PageExport.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
 #include <QApplication>
@@ -9,9 +8,6 @@
 #include <QJsonObject>
 #include <QTimer>
 int main(int argc, char **argv) {
-    for (int i = 1; i < argc; ++i)
-        if (QByteArray(argv[i]) == "--export-worker")
-            return airlet::runExportWorker(argc, argv);
     QElapsedTimer start;
     start.start();
     QApplication app(argc, argv);

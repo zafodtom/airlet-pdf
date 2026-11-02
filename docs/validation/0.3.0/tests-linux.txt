@@ -26,7 +26,7 @@ PASS   : TestAirlet::scannedHasNoText()
 PASS   : TestAirlet::cacheBound()
 PASS   : TestAirlet::serviceReplacementAndIdle()
 PASS   : TestAirlet::cancelInFlightAndJoin()
-QINFO  : TestAirlet::viewZoomScrollCloseAndIdle() idle_process_cpu_ms_over_500ms=0.101
+QINFO  : TestAirlet::viewZoomScrollCloseAndIdle() idle_process_cpu_ms_over_500ms=0.115
 PASS   : TestAirlet::viewZoomScrollCloseAndIdle()
 QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
 QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
@@ -64,5 +64,5 @@ PASS   : TestAirlet::lazyTextAndCropService()
 PASS   : TestAirlet::cancelAreaOnDocumentChange()
 PASS   : TestAirlet::imageSaveAtomicAndOriginalProtection()
 PASS   : TestAirlet::cleanupTestCase()
-Totals: 57 passed, 0 failed, 0 skipped, 0 blacklisted, 5037ms
+Totals: 57 passed, 0 failed, 0 skipped, 0 blacklisted, 4886ms
 ********* Finished testing of TestAirlet *********

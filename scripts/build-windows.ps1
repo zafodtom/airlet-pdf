@@ -16,7 +16,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Kompilace selhala.' }
     $env:QT_QPA_PLATFORM = 'offscreen'
     & ctest --test-dir $build -C Release --output-on-failure
-    if ($LASTEXITCODE -ne 0) { throw 'Testy selhaly.' }
+    $testExitCode = $LASTEXITCODE
+    $testLog = Join-Path $build 'airlet-tests.txt'
+    if (Test-Path $testLog) { Get-Content $testLog }
+    if ($testExitCode -ne 0) { throw 'Testy selhaly; viz podrobný výstup výše.' }
     Remove-Item Env:QT_QPA_PLATFORM -ErrorAction SilentlyContinue
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
     & cmake --install $build --config Release --prefix $stage

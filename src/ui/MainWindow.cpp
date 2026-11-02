@@ -487,7 +487,12 @@ void MainWindow::exportPages() {
             QMessageBox::warning(this, QStringLiteral("Export"), exportProcess.errorString());
         }
     });
-    exportProcess.start(QCoreApplication::applicationFilePath(), {"--export-worker"});
+#ifdef Q_OS_WIN
+    const auto workerName = QStringLiteral("AirletExport.exe");
+#else
+    const auto workerName = QStringLiteral("AirletExport");
+#endif
+    exportProcess.start(QDir(QCoreApplication::applicationDirPath()).filePath(workerName), {});
     exportProgress->show();
 }
 void MainWindow::chooseFile() {
