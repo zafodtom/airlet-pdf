@@ -4,7 +4,7 @@
 
 Ubuntu 24.04.3 LTS v řízeném kontejneru, GCC 13.3.0, CMake 3.31.6, Qt 6.4.2, PDFium 158.0.8125.0 (chromium/8125), **Release**, backend Qt offscreen. Nejde o cílový Windows počítač ani skutečný monitor. Soukromá uživatelská PDF nebyla použita.
 
-Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně staženy; zjištěné SHA256 jsou uzamčeny. Zkontrolována struktura archivů, importní knihovna PDFium, dostupnost windeployqt, jeho přepínače v odpovídajícím Qt zdroji a licenční soubory. Windows kód **nebyl zkompilován ani spuštěn**, PowerShell/Inno skripty čekají na Windows ověření.
+Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně staženy; zjištěné SHA256 jsou uzamčeny. Zkontrolována struktura archivů, importní knihovna PDFium, dostupnost windeployqt, jeho přepínače v odpovídajícím Qt zdroji a licenční soubory. První Windows build č. 1 (https://github.com/zafodtom/airlet-pdf/actions/runs/41470150175) ověřil stažení/rozbalení závislostí a CMake konfiguraci na Windows Server 2022, MSVC 19.44.35229.0, SDK 10.0.26100.0. Kompilace adaptéru PDFium selhala na kolizi makra Windows `max` se `std::max`. Doplněno NOMINMAX a WIN32_LEAN_AND_MEAN; testy MSVC nově explicitně používají UTF-8. Oprava zatím čeká na nový Windows běh. GUI, testy a instalátor ve Windows dosud neproběhly.
 
 ## Výsledky
 
@@ -25,6 +25,8 @@ Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně sta�
 | A0 stránka při fit-width | Prošlo; opravena oscilace šířky kvůli scrollbarům |
 | Otevření zobrazuje začátek první stránky | Prošlo |
 | Vizuální kontrola rasteru a hlavního okna | Provedena na offscreen snímcích syntetického PDF |
+| Windows CMake konfigurace | Prošla v prvním CI běhu |
+| Windows Release kompilace | První běh selhal na makru max; oprava připravena pro nový běh |
 | Windows GUI, instalace a odinstalace | **Neprovedeno** |
 | Windows přechod mezi skutečnými HiDPI monitory | **Neprovedeno** |
 | Studený start se řízenou cache | **Neprovedeno** |
@@ -56,6 +58,7 @@ Externí CPU/RSS čítače virtualizovaného `/proc` vracely nespolehlivé výsl
 - Po prvním fit se explicitně přejde na začátek první stránky.
 - První obraz se měří až při paintu s přijatým PDF obrazem.
 - Malá cache tří PDFium page handles brání opakovanému načítání téže stránky pro každou dlaždici.
+- Windows sestavení definuje NOMINMAX před windows.h z PDFium, aby nezničilo volání std::max; MSVC testy mají explicitní UTF-8.
 - Změna rozměru dosud neznámé stránky ihned invaliduje rozpracovanou generaci.
 
 ## Zbývající překážka a stav dodávky
