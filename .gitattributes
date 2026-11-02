@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.7z binary
+*.xz binary
+*.tgz binary
+*.bundle binary
