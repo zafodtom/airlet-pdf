@@ -1,13 +1,15 @@
-# Airlet PDF 0.4.0
+# Airlet PDF 0.4.1
 
 Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Žádné účty, cloud, síťové požadavky, telemetrie ani proces po zavření.
 
-**Stav 0.4.0:** hledání textu, tisk a nové PDF ze sady obrázků. Linux Release testy prošly; nové Windows sestavení vyžaduje ruční workflow. [Ovládání a omezení](docs/DOCUMENT-TOOLS.md).
+**Stav 0.4.1:** souvislé zvýraznění hledání i výběru myší, přehlednější hlavní menu, vlastní ikona a volba výchozí aplikace PDF na konci instalace. Windows sestavení této aktualizace čeká na nové ruční workflow.
 
-Poslední ověřená Windows verze je [0.3.0 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41484128834/artifacts/13160757996). Prošla kompilací, testy i balením v běhu #6 a uživatelským testem exportu. Artefakty se uchovávají 3 dny.
+Poslední ověřená Windows verze je [0.4.0 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41488401076/artifacts/13162852174). Prošla kompilací, testy i balením v běhu #7; uživatel potvrdil hledání, tvorbu PDF i tisk. Artefakty se uchovávají 3 dny.
 
 ## Implementováno
 
+- Soubor: Otevřít, Zavřít, Export; Nápověda: O aplikaci. Tyto položky nejsou v nástrojové liště; klávesové zkratky zůstávají.
+- Vlastní ikona v okně, Windows EXE, zástupcích, instalátoru a asociaci PDF.
 - Otevření dialogem, přetažením a cestou v argumentu; české Unicode cesty; heslo.
 - Svislé prohlížení, přechod na stránku, první/poslední, předchozí/další.
 - Ctrl+kolečko s kotvou pod kurzorem, +/−, 100 %, šířka/celá stránka; posun prostředním tlačítkem.
@@ -29,7 +31,7 @@ Poslední ověřená Windows verze je [0.3.0 – instalátor a portable](https:/
 
 ## Sestavení a instalace
 
-Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.4.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
+Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.4.1-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor zaregistruje Airlet PDF pro příponu .pdf a na závěrečné stránce nabídne otevření nastavení výchozích aplikací. Ve Windows 11 se otevře stránka Airlet PDF, ve Windows 10 obecná volba výchozích aplikací. Změnu dokončí uživatel v systémovém rozhraní.
 
 ```powershell
 # V Developer PowerShell for VS 2022, po přípravě závislostí:

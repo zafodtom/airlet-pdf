@@ -342,7 +342,11 @@ void PdfView::showSearchHit(int p, QVector<QRectF> bounds, QSizeF points) {
         rebuildLayout();
     }
     searchPage = p;
-    searchBounds = std::move(bounds);
+    searchBounds = highlightBands(bounds);
+    if (searchBounds.isEmpty()) {
+        clearSearchHit();
+        return;
+    }
     goToPage(p);
     const auto rect = rotateRect(searchBounds.first(), sizes[p], rotations[p]);
     const auto point = rect.center() * logicalScale() + pages[p].topLeft();
@@ -419,9 +423,11 @@ void PdfView::paintEvent(QPaintEvent *) {
             painter.drawRect(transform(areaBounds()));
         else if (activeText && firstGlyph >= 0 && lastGlyph >= 0) {
             painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor(90, 190, 255, 150));
-            for (int i = std::min(firstGlyph, lastGlyph); i <= std::max(firstGlyph, lastGlyph); ++i)
-                painter.drawRect(transform(activeText->glyphs[i].bounds));
+            auto highlight = palette().color(QPalette::Highlight);
+            highlight.setAlpha(100);
+            painter.setBrush(highlight);
+            for (const auto &band : selectionBands)
+                painter.drawRect(transform(band));
         }
     }
 }
@@ -587,6 +593,7 @@ void PdfView::clearSelection() {
     selectionPage = -1;
     firstGlyph = lastGlyph = -1;
     activeText.reset();
+    selectionBands.clear();
     selectionStart = selectionEnd = {};
     viewport()->update();
     emit selectionChanged();
@@ -596,6 +603,17 @@ void PdfView::updateTextSelection() {
         return;
     firstGlyph = nearestGlyph(*activeText, selectionStart);
     lastGlyph = nearestGlyph(*activeText, selectionEnd);
+    QVector<QRectF> bounds;
+    if (firstGlyph >= 0 && lastGlyph >= 0) {
+        for (int i = std::min(firstGlyph, lastGlyph); i <= std::max(firstGlyph, lastGlyph); ++i) {
+            const auto &glyph = activeText->glyphs[i];
+            if (glyph.text.contains('\r') || glyph.text.contains('\n'))
+                bounds.append(QRectF());
+            else if (!glyph.bounds.isEmpty())
+                bounds.append(glyph.bounds);
+        }
+    }
+    selectionBands = highlightBands(bounds);
     viewport()->update();
     emit selectionChanged();
 }

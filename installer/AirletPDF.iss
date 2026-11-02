@@ -7,7 +7,7 @@
 [Setup]
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
-AppVersion=0.4.0
+AppVersion=0.4.1
 AppPublisher=Airlet PDF
 DefaultDirName={localappdata}\Programs\Airlet PDF
 DefaultGroupName=Airlet PDF
@@ -16,10 +16,11 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=AirletPDF-Setup-0.4.0-x64
+OutputBaseFilename=AirletPDF-Setup-0.4.1-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\assets\airlet.ico
 UninstallDisplayIcon={app}\AirletPDF.exe
 ChangesAssociations=yes
 DisableProgramGroupPage=yes
@@ -28,7 +29,6 @@ InfoAfterFile=..\licenses\THIRD-PARTY.md
 Name: "czech"; MessagesFile: "compiler:Languages\Czech.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Vytvořit zástupce na ploše"; Flags: unchecked
-Name: "pdfcandidate"; Description: "Nabídnout Airlet PDF jako aplikaci pro PDF (výchozí aplikaci zvolíte v nastavení Windows)"; Flags: unchecked
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [InstallDelete]
@@ -42,12 +42,30 @@ Type: files; Name: "{app}\Qt6Network.dll"
 Name: "{group}\Airlet PDF"; Filename: "{app}\AirletPDF.exe"
 Name: "{autodesktop}\Airlet PDF"; Filename: "{app}\AirletPDF.exe"; Tasks: desktopicon
 [Registry]
-Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Airlet PDF"; Tasks: pdfcandidate; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\SupportedTypes"; ValueType: string; ValueName: ".pdf"; ValueData: ""; Tasks: pdfcandidate
-Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""; Tasks: pdfcandidate
-Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document"; ValueType: string; ValueData: "PDF dokument"; Tasks: pdfcandidate; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\DefaultIcon"; ValueType: string; ValueData: "{app}\AirletPDF.exe,0"; Tasks: pdfcandidate
-Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""; Tasks: pdfcandidate
-Root: HKCU; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: none; ValueName: "AirletPDF.Document"; Tasks: pdfcandidate; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Airlet PDF"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\SupportedTypes"; ValueType: string; ValueName: ".pdf"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document"; ValueType: string; ValueData: "PDF dokument"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\DefaultIcon"; ValueType: string; ValueData: "{app}\AirletPDF.exe,0"
+Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: string; ValueName: "AirletPDF.Document"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Airlet PDF"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Rychlý lokální prohlížeč PDF"
+Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: "{app}\AirletPDF.exe,0"
+Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pdf"; ValueData: "AirletPDF.Document"
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Airlet PDF"; ValueData: "Software\Airlet\Airlet PDF\Capabilities"; Flags: uninsdeletevalue
 [Run]
 Filename: "{app}\AirletPDF.exe"; Description: "Spustit Airlet PDF"; Flags: nowait postinstall skipifsilent
+Filename: "{code:DefaultAppsUri}"; Description: "Zvolit Airlet PDF jako výchozí pro PDF v nastavení Windows"; Flags: postinstall shellexec skipifsilent
+
+[Code]
+function DefaultAppsUri(Param: String): String;
+var
+  Version: TWindowsVersion;
+begin
+  GetWindowsVersionEx(Version);
+  if Version.Build >= 22000 then
+    Result := 'ms-settings:defaultapps?registeredAppUser=Airlet%20PDF'
+  else
+    Result := 'ms-settings:defaultapps';
+end;

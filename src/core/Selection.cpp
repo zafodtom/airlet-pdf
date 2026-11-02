@@ -34,6 +34,52 @@ QString selectedText(const TextPage &text, int first, int last) {
     result.replace('\r', '\n');
     return result;
 }
+QVector<QRectF> highlightBands(const QVector<QRectF> &bounds) {
+    QVector<QRectF> result;
+    QRectF band, previous;
+    int direction = 0; // 1 horizontal, 2 vertical (intrinsic page rotation)
+    auto flush = [&] {
+        if (!band.isEmpty())
+            result.append(band);
+        band = {};
+        previous = {};
+        direction = 0;
+    };
+    for (const auto &rect : bounds) {
+        if (rect.isEmpty()) {
+            flush();
+            continue;
+        }
+        if (band.isEmpty()) {
+            band = previous = rect;
+            continue;
+        }
+        const double overlapY =
+            std::min(previous.bottom(), rect.bottom()) - std::max(previous.top(), rect.top());
+        const double overlapX =
+            std::min(previous.right(), rect.right()) - std::max(previous.left(), rect.left());
+        const double gapX =
+            std::max({0., rect.left() - previous.right(), previous.left() - rect.right()});
+        const double gapY =
+            std::max({0., rect.top() - previous.bottom(), previous.top() - rect.bottom()});
+        const bool horizontal = direction != 2 &&
+                                overlapY >= .3 * std::min(previous.height(), rect.height()) &&
+                                gapX <= .9 * std::max(previous.height(), rect.height());
+        const bool vertical = direction != 1 &&
+                              overlapX >= .3 * std::min(previous.width(), rect.width()) &&
+                              gapY <= .9 * std::max(previous.width(), rect.width());
+        if (horizontal || vertical) {
+            direction = horizontal ? 1 : 2;
+            band = band.united(rect);
+        } else {
+            flush();
+            band = rect;
+        }
+        previous = rect;
+    }
+    flush();
+    return result;
+}
 QRectF rotateRect(QRectF r, QSizeF size, int rotation) {
     const QPointF points[] = {
         rotatePoint(r.topLeft(), size, rotation), rotatePoint(r.topRight(), size, rotation),

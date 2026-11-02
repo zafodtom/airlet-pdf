@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
@@ -11,6 +12,7 @@ int main(int argc, char **argv) {
     QElapsedTimer start;
     start.start();
     QApplication app(argc, argv);
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/airlet.png")));
     QCoreApplication::setOrganizationName("Airlet");
     QCoreApplication::setApplicationName("Airlet PDF");
     QCoreApplication::setApplicationVersion(AIRLET_VERSION);

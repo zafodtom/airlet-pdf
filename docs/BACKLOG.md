@@ -6,12 +6,19 @@
 - Výběr textu, výřez a PNG/JPG export aktuální stránky, rozsahu i celého PDF.
 - Windows 0.3.0: úspěšný běh #6, instalátor/portable a uživatelský test.
 
-## 0.4.0 – implementace, čeká na Windows ověření
+## 0.4.0 – ověřeno ve Windows i uživatelem
 
 - Hledání textu na vyžádání, zvýraznění a další/předchozí nález, zrušení; bez OCR.
 - Tisk přes systémový dialog a proces oddělený od prohlížení. Prakticky ověřit fyzickou tiskárnu, rozsahy, kopie a oboustranný tisk.
 - Jedno nové PDF ze sady obrázků. Ruční pořadí se vztahuje jen na obrázky před vytvořením nového PDF.
-- Lokální regresní testy včetně HiDPI, po nich nové ruční Windows workflow; nadále jedna konfigurace a artefakty 3 dny.
+- Windows CI #7 prošlo; uživatel potvrdil hledání, tvorbu PDF a tisk.
+
+## 0.4.1 – čeká na nové Windows sestavení
+
+- Souvislé zvýraznění po slovech/řádcích pro hledání a výběr myší.
+- Otevřít/Zavřít/Export a O aplikaci pouze v hlavním menu.
+- Vlastní ikona aplikace i instalátoru.
+- Per-user registrace pro PDF a volba otevřít Nastavení k potvrzení výchozí aplikace na konci instalace.
 
 ## Nyní nepřidávat
 

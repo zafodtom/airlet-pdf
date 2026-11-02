@@ -15,6 +15,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
+#include <QIcon>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -26,6 +27,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QToolBar>
 #include <QWheelEvent>
 #include <QtTest>
 #include <atomic>
@@ -84,6 +86,34 @@ class SlowEngine final : public PdfEngine {
 class TestAirlet final : public QObject {
     Q_OBJECT
   private slots:
+    void continuousHighlightBands() {
+        // Varying ascenders/descenders, kerning overlap and a word space form one band.
+        const QVector<QRectF> boxes{{10, 10, 6, 12}, {15, 12, 5, 7},  {23, 11, 7, 9},
+                                    {34, 12, 5, 7},  {10, 30, 5, 10}, {17, 32, 5, 6},
+                                    {100, 30, 5, 10}};
+        const auto bands = highlightBands(boxes);
+        QCOMPARE(bands.size(), 3);
+        QCOMPARE(bands[0], QRectF(10, 10, 29, 12));
+        QCOMPARE(bands[1], QRectF(10, 30, 12, 10));
+        QCOMPARE(bands[2], QRectF(100, 30, 5, 10));
+        const auto vertical = highlightBands({{10, 10, 12, 6}, {12, 17, 7, 5}, {11, 24, 9, 7}});
+        QCOMPARE(vertical, QVector<QRectF>({QRectF(10, 10, 12, 21)}));
+        QCOMPARE(highlightBands({{10, 10, 5, 10}, QRectF(), {10, 21, 5, 10}}).size(), 2);
+        QVERIFY(highlightBands({}).isEmpty());
+        for (int rotation = 0; rotation < 4; ++rotation) {
+            const auto rect = rotateRect(bands.first(), QSizeF(300, 400), rotation);
+            QVERIFY(rect.isValid());
+        }
+        MainWindow window;
+        QVERIFY(!window.windowIcon().isNull());
+        QVERIFY(!window.windowIcon().pixmap(32, 32).isNull());
+        for (auto *bar : window.findChildren<QToolBar *>())
+            for (auto *a : bar->actions())
+                QVERIFY(a->text() != QString::fromUtf8("Otevřít…") &&
+                        a->text() != QString::fromUtf8("Zavřít") &&
+                        a->text() != QString::fromUtf8("Export…") &&
+                        a->text() != QString::fromUtf8("O aplikaci"));
+    }
     void documentJobsIntegration() {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

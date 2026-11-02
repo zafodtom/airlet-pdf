@@ -15,6 +15,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QIcon>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -35,6 +36,7 @@
 namespace airlet {
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(this)) {
     setWindowTitle(QStringLiteral("Airlet PDF"));
+    setWindowIcon(QIcon(QStringLiteral(":/icons/airlet.png")));
     resize(1050, 800);
     setCentralWidget(view);
     tools = new DocumentTools(this, view);
@@ -50,14 +52,22 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         connect(a, &QAction::triggered, this, fn);
         return a;
     };
-    action(QStringLiteral("Otevřít…"), QKeySequence::Open, [this] { chooseFile(); });
-    auto *close = action(QStringLiteral("Zavřít"), QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
+    auto menuAction = [&](const QString &text, const QKeySequence &shortcut, auto fn) {
+        auto *a = new QAction(text, this);
+        a->setShortcut(shortcut);
+        addAction(a);
+        connect(a, &QAction::triggered, this, fn);
+        return a;
+    };
+    auto *openAction =
+        menuAction(QStringLiteral("Otevřít…"), QKeySequence::Open, [this] { chooseFile(); });
+    auto *close = menuAction(QStringLiteral("Zavřít"), QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
         view->closeDocument();
         openedPath.clear();
         setWindowTitle("Airlet PDF");
     });
-    auto *exportAction = action(QStringLiteral("Export…"), QKeySequence(Qt::CTRL | Qt::Key_E),
-                                [this] { exportPages(); });
+    auto *exportAction = menuAction(QStringLiteral("Export…"), QKeySequence(Qt::CTRL | Qt::Key_E),
+                                    [this] { exportPages(); });
     auto *findAction = new QAction(QStringLiteral("Hledat…"), this);
     findAction->setShortcut(QKeySequence::Find);
     addAction(findAction);
@@ -67,14 +77,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     addAction(printAction);
     connect(printAction, &QAction::triggered, tools, &DocumentTools::print);
     auto *fileMenu = menuBar()->addMenu(QStringLiteral("Soubor"));
-    fileMenu->addAction(bar->actions().first());
+    fileMenu->addAction(openAction);
     auto *imagesAction = fileMenu->addAction(QStringLiteral("PDF z obrázků…"));
     connect(imagesAction, &QAction::triggered, tools, &DocumentTools::imagesPdf);
     fileMenu->addAction(exportAction);
     fileMenu->addAction(printAction);
     fileMenu->addAction(close);
     menuBar()->addMenu(QStringLiteral("Úpravy"))->addAction(findAction);
-    bar->addSeparator();
     QList<QAction *> documentActions{close, exportAction, findAction, printAction};
     documentActions << action(QStringLiteral("|◀"), QKeySequence(Qt::CTRL | Qt::Key_Home),
                               [this] { view->goToPage(0); });
@@ -191,7 +200,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 else
                     QMessageBox::warning(this, QStringLiteral("Uložení výřezu"), error);
             });
-    action(QStringLiteral("O aplikaci"), {}, [this] {
+    auto *aboutAction = menuAction(QStringLiteral("O aplikaci"), {}, [this] {
         QMessageBox box(this);
         box.setWindowTitle(QStringLiteral("Airlet PDF"));
         box.setTextFormat(Qt::RichText);
@@ -210,6 +219,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 .arg(QCoreApplication::applicationVersion(), QString::fromLatin1(qVersion())));
         box.exec();
     });
+    menuBar()->addMenu(QStringLiteral("Nápověda"))->addAction(aboutAction);
     for (auto *a : documentActions)
         a->setEnabled(false);
     page->setEnabled(false);
@@ -254,7 +264,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     connect(
         view, &QWidget::customContextMenuRequested, this, [this, textMode, areaMode](QPoint point) {
             QMenu menu(this);
-            menu.addAction(QStringLiteral("Otevřít…"), this, &MainWindow::chooseFile);
             if (view->pageCount()) {
                 menu.addAction(copyAction);
                 menu.addAction(saveAreaAction);

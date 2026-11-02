@@ -81,7 +81,7 @@ class PdfView final : public QAbstractScrollArea {
 
   private:
     int searchPage = -1;
-    QVector<QRectF> searchBounds;
+    QVector<QRectF> searchBounds, selectionBands;
     RenderService service;
     TileCache sharp{96}, previews{16};
     quint64 session = 0, generation = 0;
