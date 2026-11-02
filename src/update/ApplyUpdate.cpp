@@ -1,13 +1,16 @@
 // Standalone Windows handoff; no Qt or application-local DLLs are loaded here.
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
+// Windows SDK extension headers require the base Windows types first.
+// clang-format off
+#include <windows.h>
 #include <bcrypt.h>
+#include <shellapi.h>
+// clang-format on
 #include <cstdlib>
 #include <cwchar>
-#include <shellapi.h>
 #include <string>
 #include <vector>
-#include <windows.h>
 static std::wstring quote(const std::wstring &value) {
     std::wstring out = L"\"";
     size_t slashes = 0;

@@ -36,3 +36,7 @@ Linux Release: všech 65 QtTest případů prošlo při běžném i simulovaném
 Je nutné provést Windows CI a pak na cílovém PC ověřit celý přechod z 0.6.0 na vyšší stabilní verzi (např. 0.6.1), zavření dialogu během stahování, zachování jazyka/asociace PDF a znovuotevření dokumentu. Bez tohoto běhu není kompletní instalace aktualizace označená jako prakticky ověřená.
 
 Primární dokumentace: [GitHub Releases REST](https://docs.github.com/en/rest/releases/releases), [Qt přesměrování](https://doc.qt.io/qt-6.8/qnetworkrequest.html), [Inno Setup parametry](https://jrsoftware.org/ishelp/topic_setupcmdline.htm).
+
+### Windows CI #10 – oprava pořadí SDK hlaviček
+
+Běh 41513538961 na commitu d1659b7 prošel kompilací jádra, prohlížeče i síťového aktualizačního UI, ale zastavil se při překladu AirletApplyUpdate.cpp. Formátovač seřadil bcrypt.h před windows.h, takže chyběly základní typy Windows SDK a následovalo přes 100 souvisejících chyb. windows.h je nyní první; závislý blok hlaviček chrání clang-format off/on. Sada testů ani publikace vydání se v tomto Windows běhu nespustily. Oprava nemění chování aplikace a potřebuje nový Windows běh.
