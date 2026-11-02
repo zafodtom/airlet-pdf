@@ -26,6 +26,7 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMenuBar>
 #include <QProcess>
 #include <QScrollBar>
@@ -195,7 +196,7 @@ class TestAirlet final : public QObject {
         auto *toggle = window.findChild<QAction *>("continueDocuments");
         QVERIFY(toggle);
         for (auto *bar : window.findChildren<QToolBar *>())
-            QVERIFY(!bar->actions().contains(toggle));
+            QVERIFY(bar->actions().contains(toggle));
         bool settings = false, language = false;
         for (auto *a : window.findChildren<QAction *>()) {
             settings |= a->text() == QString::fromUtf8("Nastavení");
@@ -860,6 +861,52 @@ class TestAirlet final : public QObject {
         const auto output = qEnvironmentVariable("AIRLET_TEST_OUTPUT");
         if (!output.isEmpty())
             QVERIFY(window.grab().save(output + "/mainwindow.png"));
+        window.close();
+    }
+    void defaultPageViewAndSharedToolbarState() {
+        MainWindow window;
+        window.resize(1050, 800);
+        window.show();
+        auto *view = window.pdfView();
+        auto *pageMode = window.findChild<QAction *>("fitPage");
+        auto *widthMode = window.findChild<QAction *>("fitWidth");
+        auto *actualSize = window.findChild<QAction *>("actualSize");
+        auto *continuation = window.findChild<QAction *>("continueDocuments");
+        QVERIFY(pageMode && widthMode && actualSize && continuation);
+        auto *bar = window.findChild<QToolBar *>();
+        QVERIFY(bar && bar->actions().contains(continuation));
+        bool inMenu = false;
+        for (auto *menu : window.findChildren<QMenu *>())
+            inMenu |= menu->actions().contains(continuation);
+        QVERIFY(inMenu);
+        QVERIFY(!continuation->isChecked());
+        QSignalSpy opened(view, &PdfView::documentOpened);
+        window.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+        QVERIFY(pageMode->isChecked());
+        QVERIFY(!widthMode->isChecked());
+        auto insidePage = [&] {
+            const auto top = view->pageToViewport(0, {0, 0});
+            const auto bottom = view->pageToViewport(0, {300, 400});
+            return top.x() >= -1 && top.y() >= -1 && bottom.x() <= view->viewport()->width() + 1 &&
+                   bottom.y() <= view->viewport()->height() + 1;
+        };
+        QTRY_VERIFY(insidePage());
+        widthMode->trigger();
+        QVERIFY(widthMode->isChecked());
+        QVERIFY(!pageMode->isChecked());
+        view->fitPage(); // Includes changes made outside toolbar actions.
+        QVERIFY(pageMode->isChecked());
+        view->setZoom(1.);
+        QVERIFY(actualSize->isChecked());
+        view->setZoom(1.5);
+        QVERIFY(!actualSize->isChecked());
+        QVERIFY(!widthMode->isChecked());
+        QVERIFY(!pageMode->isChecked());
+        window.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 2, 5000);
+        QTRY_VERIFY(insidePage());
+        QVERIFY(pageMode->isChecked());
         window.close();
     }
     void landscapeFitDoesNotOscillate() {

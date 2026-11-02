@@ -1,4 +1,4 @@
-# Ruční aktualizace – 0.6.0
+# Ruční aktualizace – od 0.6.0
 
 ## Použití
 
@@ -27,7 +27,7 @@ Jednorázově nainstalovat 0.6.0 běžným instalátorem; starší verze nemají
 3. Po testech a balení vznikne manifest z opravdového instalačního EXE: schema 1, version, installer.name/size/sha256. Workflow vytvoří nový tag vX.Y.Z a stabilní release s EXE, portable ZIP, SHA256SUMS.txt a airlet-update.json. Existující release se nepřepisuje.
 4. V nainstalovaném Airletu zvolit Nastavení → Aktualizace. Artefakty Actions slouží pouze testům, aplikace z nich nikdy neaktualizuje.
 
-Dokud neexistuje první zveřejněný stabilní release, dialog zobrazí tuto informaci bez pádu. Před prvním vydáním 0.6.0 API nepotvrdilo žádné existující releases; první publikace je součástí nového ručního workflow.
+Stabilní v0.6.0 byla publikována úspěšným Windows během #11 (41514174711). Připravovaná v0.6.1 umožní první praktickou zkoušku aktualizace.
 
 ## Ověření a zbývající praktická zkouška
 
@@ -39,4 +39,8 @@ Primární dokumentace: [GitHub Releases REST](https://docs.github.com/en/rest/r
 
 ### Windows CI #10 – oprava pořadí SDK hlaviček
 
-Běh 41513538961 na commitu d1659b7 prošel kompilací jádra, prohlížeče i síťového aktualizačního UI, ale zastavil se při překladu AirletApplyUpdate.cpp. Formátovač seřadil bcrypt.h před windows.h, takže chyběly základní typy Windows SDK a následovalo přes 100 souvisejících chyb. windows.h je nyní první; závislý blok hlaviček chrání clang-format off/on. Sada testů ani publikace vydání se v tomto Windows běhu nespustily. Oprava nemění chování aplikace a potřebuje nový Windows běh.
+Běh 41513538961 na commitu d1659b7 prošel kompilací jádra, prohlížeče i síťového aktualizačního UI, ale zastavil se při překladu AirletApplyUpdate.cpp. Formátovač seřadil bcrypt.h před windows.h, takže chyběly základní typy Windows SDK a následovalo přes 100 souvisejících chyb. windows.h je nyní první; závislý blok hlaviček chrání clang-format off/on. Sada testů ani publikace vydání se v tomto Windows běhu nespustily. Oprava nemění chování aplikace. Následující Windows běh #11 úspěšně dokončil sestavení, testy, balení i publikaci v0.6.0.
+
+### 0.6.1 – lokální ověření
+
+Linux Release: 66 QtTest případů prošlo při běžném i simulovaném 200% měřítku. Protokoly jsou v docs/validation/0.6.1. Nová kontrola ověřuje výchozí celou stránku v okně, označení režimu při zoomu i po opětovném otevření a dostupnost společného přepínače pokračování na liště i v menu. Windows sestavení a skutečná instalace aktualizace 0.6.0 → 0.6.1 zůstávají k ověření.

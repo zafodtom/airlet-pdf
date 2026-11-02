@@ -90,6 +90,7 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
 }
 void PdfView::openFile(const QString &p, const QString &password, bool startAtEnd) {
     closeDocument();
+    setFitMode(2);
     initialAtEnd = startAtEnd;
     path = p;
     this->password = password;
@@ -223,13 +224,19 @@ void PdfView::goToPage(int p) {
                        .05, 16.);
         if (std::abs(nextScale - scale) > 1e-8)
             setZoom(nextScale);
-        fitMode = 2;
+        setFitMode(2);
     }
     verticalScrollBar()->setValue(qRound(pages[p].top() - gap));
     schedule();
 }
+void PdfView::setFitMode(int value) {
+    if (fitMode == value)
+        return;
+    fitMode = value;
+    emit viewModeChanged();
+}
 void PdfView::setZoom(double value, QPoint anchor) {
-    fitMode = 0;
+    setFitMode(0);
     pageWheelRemainder = 0;
     pagePixelRemainder = 0;
     if (anchor.x() < 0)
@@ -256,23 +263,23 @@ void PdfView::setZoom(double value, QPoint anchor) {
     viewport()->update();
 }
 void PdfView::fitWidth() {
-    fitMode = 1;
+    setFitMode(1);
     const int p = currentPage();
     if (p < 0)
         return;
     const auto s = rotatedSize(sizes[p], rotations[p]);
     setZoom((viewport()->width() - 2 * gap) / (s.width() * 96. / 72.));
-    fitMode = 1;
+    setFitMode(1);
 }
 void PdfView::fitPage() {
-    fitMode = 2;
+    setFitMode(2);
     const int p = currentPage();
     if (p < 0)
         return;
     const auto s = rotatedSize(sizes[p], rotations[p]);
     setZoom(std::min((viewport()->width() - 2 * gap) / (s.width() * 96. / 72.),
                      (viewport()->height() - 2 * gap) / (s.height() * 96. / 72.)));
-    fitMode = 2;
+    setFitMode(2);
     goToPage(p);
 }
 void PdfView::rotate(int delta) {
@@ -525,7 +532,7 @@ void PdfView::scrollContentsBy(int, int) {
 }
 void PdfView::wheelEvent(QWheelEvent *e) {
     if (e->modifiers() & Qt::ControlModifier) {
-        fitMode = 0;
+        setFitMode(0);
         const double steps =
             !e->pixelDelta().isNull() ? e->pixelDelta().y() / 120. : e->angleDelta().y() / 120.;
         setZoom(scale * std::pow(1.15, steps), e->position().toPoint());

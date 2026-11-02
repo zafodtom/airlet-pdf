@@ -181,5 +181,11 @@
   "Aktualizace…": "Updates…",
   "Pokračovat dalším souborem": "Continue between files",
   "Na začátku či konci otevřít sousední PDF ze stejné složky. Po spuštění je vždy vypnuto.": "Open the adjacent PDF in the same folder before the start or past the end. Always off at startup.",
-  "Ve složce není předchozí PDF.": "There is no previous PDF in this folder."
+  "Ve složce není předchozí PDF.": "There is no previous PDF in this folder.",
+  "Rychlý PDF prohlížeč pro Windows.": "A fast PDF viewer for Windows.",
+  "Zdarma pro osobní i komerční použití. Licence MIT.": "Free for personal and commercial use. MIT License.",
+  "Web projektu": "Project website",
+  "Licence": "License",
+  "Knihovny třetích stran": "Third-party libraries",
+  "Licenční soubor nelze otevřít.": "Cannot open the license file."
 }

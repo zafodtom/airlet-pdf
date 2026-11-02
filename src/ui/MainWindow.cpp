@@ -13,6 +13,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -31,8 +32,10 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QTextBrowser>
 #include <QToolBar>
 #include <QUrl>
+#include <QVBoxLayout>
 
 namespace airlet {
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(this)) {
@@ -174,12 +177,32 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                               [this] { view->setZoom(view->zoom() / 1.15); });
     documentActions << action(QStringLiteral("+"), QKeySequence::ZoomIn,
                               [this] { view->setZoom(view->zoom() * 1.15); });
-    documentActions << action(QStringLiteral("100 %"), QKeySequence(Qt::CTRL | Qt::Key_0),
+    auto *actualSize = action(QStringLiteral("100 %"), QKeySequence(Qt::CTRL | Qt::Key_0),
                               [this] { view->setZoom(1.); });
-    documentActions << action(uiText(QStringLiteral("Šířka")), QKeySequence(Qt::CTRL | Qt::Key_1),
-                              [this] { view->fitWidth(); });
-    documentActions << action(uiText(QStringLiteral("Stránka")), QKeySequence(Qt::CTRL | Qt::Key_2),
-                              [this] { view->fitPage(); });
+    auto *fitWidth = action(uiText(QStringLiteral("Šířka")), QKeySequence(Qt::CTRL | Qt::Key_1),
+                            [this] { view->fitWidth(); });
+    auto *fitPage = action(uiText(QStringLiteral("Stránka")), QKeySequence(Qt::CTRL | Qt::Key_2),
+                           [this] { view->fitPage(); });
+    actualSize->setObjectName("actualSize");
+    fitWidth->setObjectName("fitWidth");
+    fitPage->setObjectName("fitPage");
+    auto *fitGroup = new QActionGroup(this);
+    for (auto *a : {actualSize, fitWidth, fitPage}) {
+        a->setCheckable(true);
+        fitGroup->addAction(a);
+        documentActions << a;
+    }
+    auto updateFitActions = [this, fitGroup, actualSize, fitWidth, fitPage] {
+        fitGroup->setExclusive(false);
+        actualSize->setChecked(view->viewMode() == PdfView::ViewMode::Manual &&
+                               qAbs(view->zoom() - 1.) < 1e-8);
+        fitWidth->setChecked(view->viewMode() == PdfView::ViewMode::Width);
+        fitPage->setChecked(view->viewMode() == PdfView::ViewMode::Page);
+        fitGroup->setExclusive(true);
+    };
+    connect(view, &PdfView::viewModeChanged, this, updateFitActions);
+    connect(view, &PdfView::zoomChanged, this, updateFitActions);
+    updateFitActions();
     bar->addSeparator();
     auto *rotateLeft = action(QStringLiteral("↶"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R),
                               [this] { view->rotate(-1); });
@@ -270,23 +293,63 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 else
                     QMessageBox::warning(this, uiText(QStringLiteral("Uložení výřezu")), error);
             });
+    bar->addSeparator();
+    bar->addAction(continueAction);
     auto *aboutAction = menuAction(uiText(QStringLiteral("O aplikaci")), {}, [this] {
         QMessageBox box(this);
-        box.setWindowTitle(QStringLiteral("Airlet PDF"));
+        box.setWindowTitle(uiText(QStringLiteral("O aplikaci")));
+        box.setIconPixmap(windowIcon().pixmap(64, 64));
         box.setTextFormat(Qt::RichText);
         box.setText(
-            uiText(QStringLiteral(
-                       "<b>Airlet PDF %1</b><p>Rychlý lokální PDF prohlížeč.</p>"
-                       "<p>Qt %2, dynamicky připojené knihovny pod LGPLv3.<br>PDFium "
-                       "chromium/8125, BSD a licence třetích stran.</p>"
-                       "<p>Oznámení a licence jsou ve složce licenses vedle aplikace. "
-                       "Kompatibilní Qt DLL lze nahradit; "
-                       "zpětné inženýrství pro ladění změn LGPL knihoven je dovoleno.</p>"
-                       "<p>Text: výběr tažením a Ctrl+C. Výřez: obdélník do schránky nebo PNG/JPG. "
-                       "Výběr je omezen na jednu stránku, bez OCR.</p>"
-                       "<p>Ctrl+F: hledání textu. Ctrl+P: tisk. Soubor → PDF z obrázků: "
-                       "nové PDF ze sady obrázků. Otočení mění pouze zobrazení.</p>"))
-                .arg(QCoreApplication::applicationVersion(), QString::fromLatin1(qVersion())));
+            QStringLiteral("<h3>Airlet PDF %1</h3><p>%2</p>"
+                           "<p>© 2026 zafodtom &amp; Airlet PDF contributors</p>"
+                           "<p>%3</p><p><a href=\"https://github.com/zafodtom/airlet-pdf\">%4</a>"
+                           " · <a href=\"%5\">%6</a> · <a href=\"%7\">%8</a></p>")
+                .arg(QCoreApplication::applicationVersion().toHtmlEscaped(),
+                     uiText(QStringLiteral("Rychlý PDF prohlížeč pro Windows.")).toHtmlEscaped(),
+                     uiText(QStringLiteral("Zdarma pro osobní i komerční použití. Licence MIT."))
+                         .toHtmlEscaped(),
+                     uiText(QStringLiteral("Web projektu")),
+                     QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/LICENSE")
+                         .toString(QUrl::FullyEncoded),
+                     uiText(QStringLiteral("Licence")),
+                     QUrl::fromLocalFile(QCoreApplication::applicationDirPath() +
+                                         "/licenses/THIRD-PARTY.md")
+                         .toString(QUrl::FullyEncoded),
+                     uiText(QStringLiteral("Knihovny třetích stran"))));
+        for (auto *label : box.findChildren<QLabel *>()) {
+            label->setOpenExternalLinks(false);
+            connect(label, &QLabel::linkActivated, &box, [&box](const QString &link) {
+                const QUrl url(link);
+                if (!url.isLocalFile()) {
+                    QDesktopServices::openUrl(url);
+                    return;
+                }
+                QFile file(url.toLocalFile());
+                if (!file.open(QIODevice::ReadOnly)) {
+                    QMessageBox::warning(&box, uiText(QStringLiteral("Licence")),
+                                         uiText(QStringLiteral("Licenční soubor nelze otevřít.")));
+                    return;
+                }
+                QDialog dialog(&box);
+                dialog.setWindowTitle(uiText(QStringLiteral("Licence")));
+                dialog.resize(700, 520);
+                auto *layout = new QVBoxLayout(&dialog);
+                auto *text = new QTextBrowser(&dialog);
+                text->setOpenExternalLinks(true);
+                const auto contents = QString::fromUtf8(file.readAll());
+                if (file.fileName().endsWith(".md"))
+                    text->setMarkdown(contents);
+                else
+                    text->setPlainText(contents);
+                layout->addWidget(text);
+                auto *buttons = new QDialogButtonBox(&dialog);
+                buttons->addButton(uiText(QStringLiteral("Zavřít")), QDialogButtonBox::RejectRole);
+                connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+                layout->addWidget(buttons);
+                dialog.exec();
+            });
+        }
         box.exec();
     });
     menuBar()->addMenu(uiText(QStringLiteral("Nápověda")))->addAction(aboutAction);

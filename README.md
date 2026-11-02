@@ -1,71 +1,97 @@
-# Airlet PDF 0.6.0
+# Airlet PDF
 
-Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Prohlížení bez účtů, cloudu a telemetrie. Síť se používá výhradně po ruční volbě aktualizací; bez kontroly při startu a bez periodické služby.
+A fast, lightweight PDF viewer for **Windows 10 (1809 or later) and Windows 11, x64**. Free for personal and commercial use. No account, cloud upload, or telemetry.
 
-**Stav 0.6.0:** procházení souborů oběma směry, nabídka Nastavení a ruční integrované aktualizace instalované Windows edice. Nová verze čeká na ruční Windows sestavení a ověření instalace aktualizace na cílovém PC.
+## Download and install
 
-Poslední ověřený Windows balíček: [0.5.0 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41507164928/artifacts/13170954187), úspěšný běh #9. Artefakty se uchovávají 3 dny; stabilní vydání pro aktualizace jsou v [GitHub Releases](https://github.com/zafodtom/airlet-pdf/releases).
+1. Open [the latest release](https://github.com/zafodtom/airlet-pdf/releases/latest).
+2. Download the **AirletPDF-Setup-…-x64.exe** installer and run it.
+3. Follow the setup wizard. To make Airlet PDF your default PDF viewer, select the option to open Windows Default apps settings and confirm your choice there.
 
-**English:** Choose **Nastavení → Jazyk → English** and restart the application. Settings contains **Language**, **Continue between files** (off at startup), and **Updates**. With file continuation enabled, scrolling past the end opens the next PDF; scrolling before the start opens the previous PDF at its last page. Integrated updates support the installed Windows edition and run only when requested. Portable packages are updated manually.
+The installer includes the required libraries. Administrator privileges are not required. Current releases are unsigned, so Windows may show an unknown-publisher or SmartScreen warning.
 
-## Implementováno
+## Features
 
-- **Nastavení → Pokračovat dalším souborem**: výchozí stav vypnuto, přechod na následující i předchozí PDF ze stejné složky v přirozeném pořadí názvů. Na hranicích složky bez smyčky. [Podrobnosti](docs/FOLDER-AND-LANGUAGE.md).
-- **Nastavení → Jazyk**: čeština (výchozí) nebo angličtina, volba se projeví po restartu. Anglické menu používá Settings → Language. Systémové dialogy používají jazyk Windows.
-- **Nastavení → Aktualizace…**: ruční kontrola veřejných GitHub Releases, stažení s SHA-256, potvrzení restartu, tichá instalace a nové otevření PDF. Pro instalovanou Windows edici; bez automatických kontrol. [Postup a ověření](docs/UPDATES.md).
-- Soubor: Otevřít, Zavřít, Export; Nápověda: O aplikaci. Tyto položky nejsou v nástrojové liště; klávesové zkratky zůstávají.
-- Vlastní ikona v okně, Windows EXE, zástupcích, instalátoru a asociaci PDF.
-- Otevření dialogem, přetažením a cestou v argumentu; české Unicode cesty; heslo.
-- Svislé prohlížení, přechod na stránku, první/poslední, předchozí/další.
-- Ctrl+kolečko s kotvou pod kurzorem, +/−, 100 %, šířka/celá stránka; posun prostředním tlačítkem.
-- Dodatečné otočení aktuální stránky po 90° pro zobrazení.
-- Jeden worker, progresivní rušení PDFium, generace a session, 512px dlaždice, omezená cache, nízké rozlišení během zoomu, přednačtení jediné sousední stránky.
-- Rozměry stran zjišťované při návštěvě, bez počátečního průchodu celým PDF.
-- Paměť velikosti okna a poslední úspěšně otevřené složky.
-- V režimu celá stránka jeden zářez kolečka přejde o jednu stránku, včetně různých formátů stran. V ostatních režimech větší krok myši, pixelový posun touchpadu zachován.
-- Režim **Text**: skutečná textová vrstva, výběr tažením a Ctrl+C; diakritika a zalomení řádků, bez OCR. Data se načtou až při prvním výběru.
-- Režim **Výřez**: obdélník do schránky přes Ctrl+C nebo do PNG/JPG přes kontextové menu. Průběh, zrušení, atomické uložení a ochrana zdrojového PDF.
-- Textový i obrazový výběr je v této iteraci omezen na jednu stránku. Přetrvá při zoomu/otočení; Escape jej zruší. Výběr je dočasný a dokument nemění.
-- Export… / Ctrl+E: aktuální, všechny nebo vlastní rozsah stran do PNG/JPG, DPI a kvalita JPG, průběh a zrušení. Samostatný proces chrání odezvu prohlížeče.
-- Ctrl+F: vyhledání textu bez rozlišení velikosti písmen, zvýraznění aktuálního nálezu, další/předchozí, zrušení. Samostatný proces se spustí až po zadání dotazu, bez OCR.
-- Ctrl+P: systémový tiskový dialog, aktuální/vše/vlastní rozsah, přizpůsobení do tisknutelné oblasti bez ořezu, průběh a zrušení.
-- Soubor → PDF z obrázků: PNG/JPG/BMP, pořadí tažením nebo tlačítky, A4 na výšku/šířku či velikost podle obrázku a DPI. Nový soubor se dokončí atomicky bez přepisu.
-- CMake, syntetické regresní testy, Windows build/deploy skript, Inno Setup, ruční Actions.
+- Open PDFs using the file dialog, drag and drop, or Windows file associations; password-protected documents are supported.
+- Whole-page view by default, fit width, zoom, and temporary page rotation. The active view mode is highlighted on the toolbar.
+- Select and copy text, search within the document, or copy/save a rectangular crop. Text search and selection require a text layer; OCR is not included.
+- Export the current page, a page range, or all pages as PNG/JPG with adjustable resolution.
+- Print documents and create one PDF from multiple PNG/JPG/BMP images.
+- Optionally continue to the next or previous PDF in the same folder, in natural filename order. Enable **Continue between files** on the toolbar or in **Settings**. It starts disabled each time the app launches.
+- Czech and English: choose **Settings → Language** and restart. In Czech, this is **Nastavení → Jazyk → English**.
 
-**Otočení mění pouze zobrazení a vzhled exportu/tisku.** Výřez a PNG/JPG export kopírují vykreslený vzhled, nikoli původní obrazový stream. Benchmark, panel navigace, úpravy pořadí/mazání/otáčení PDF stran, samostatná extrakce vložených obrázků a historie dokumentů nyní nejsou v rozsahu. [Dohodnutý rozsah](docs/BACKLOG.md).
+Rotation changes the displayed, exported, and printed appearance; it does not modify the source PDF. Image export produces rendered pages rather than extracting embedded image files.
 
-## Sestavení a instalace
+## Updates
 
-Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.6.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor zaregistruje Airlet PDF pro příponu .pdf a na závěrečné stránce nabídne otevření nastavení výchozích aplikací. Ve Windows 11 se otevře stránka Airlet PDF, ve Windows 10 obecná volba výchozích aplikací. Změnu dokončí uživatel v systémovém rozhraní.
+Choose **Settings → Updates…** to check for a new release. After confirmation, the app downloads the update, installs it, and reopens your document. Updates are available for the installed Windows edition. There are no automatic startup checks or background update services.
 
-```powershell
-# V Developer PowerShell for VS 2022, po přípravě závislostí:
-.\scripts\build-windows.ps1
-```
+## Keyboard shortcuts
 
-Repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-pdf). [docs/GITHUB.md](docs/GITHUB.md) popisuje ruční spuštění Windows sestavení.
-
-## Ovládání
-
-| Akce | Ovládání |
+| Action | Shortcut |
 |---|---|
-| Hledat text | Ctrl+F (Enter: další nález, Escape: zavřít hledání) |
-| Tisk | Ctrl+P |
-| PDF z obrázků | Soubor → PDF z obrázků… |
-| Otevřít / zavřít dokument | Ctrl+O / Ctrl+W |
+| Open / close PDF | Ctrl+O / Ctrl+W |
+| Search / print / export pages | Ctrl+F / Ctrl+P / Ctrl+E |
+| Previous / next page | PageUp / PageDown |
+| First / last page | Ctrl+Home / Ctrl+End |
+| Zoom | Ctrl+mouse wheel, Ctrl+plus / Ctrl+minus |
+| Actual size / fit width / whole page | Ctrl+0 / Ctrl+1 / Ctrl+2 |
+| Rotate right / left | Ctrl+R / Ctrl+Shift+R |
+| Select text / crop | Alt+T / Alt+X |
+| Copy selection / clear selection | Ctrl+C / Escape |
+
+## License and support
+
+Airlet PDF's own code is available under the [MIT License](LICENSE). Bundled libraries retain their own licenses; see [third-party notices](licenses/THIRD-PARTY.md). Qt licenses and corresponding source code are included with the application.
+
+Report problems or suggest improvements in [GitHub Issues](https://github.com/zafodtom/airlet-pdf/issues). Include your Windows version, Airlet PDF version, and steps to reproduce. Avoid uploading confidential documents.
+
+---
+
+# Airlet PDF — česky
+
+Rychlý a nenáročný prohlížeč PDF pro **Windows 10 (1809 a novější) a Windows 11, x64**. Zdarma pro osobní i komerční použití. Bez účtu, odesílání dokumentů do cloudu a telemetrie.
+
+## Stažení a instalace
+
+1. Otevřete [nejnovější vydání](https://github.com/zafodtom/airlet-pdf/releases/latest).
+2. Stáhněte a spusťte instalátor **AirletPDF-Setup-…-x64.exe**.
+3. Postupujte podle průvodce. Chcete-li Airlet PDF nastavit jako výchozí prohlížeč PDF, vyberte možnost otevření nastavení výchozích aplikací Windows a volbu tam potvrďte.
+
+Potřebné knihovny jsou součástí instalace. Oprávnění správce není potřeba. Současná vydání nejsou digitálně podepsaná, takže Windows může zobrazit upozornění na neznámého vydavatele nebo SmartScreen.
+
+## Funkce
+
+- Otevření PDF dialogem, přetažením nebo přes přiřazení souborů ve Windows; podpora dokumentů chráněných heslem.
+- Výchozí zobrazení celé stránky, přizpůsobení šířce, zoom a dočasné otočení. Aktivní režim zobrazení je označený na liště.
+- Výběr a kopírování textu, hledání v dokumentu, kopírování nebo uložení obdélníkového výřezu. Hledání a výběr vyžadují textovou vrstvu; OCR není součástí aplikace.
+- Export aktuální stránky, rozsahu nebo celého dokumentu do PNG/JPG s volitelným rozlišením.
+- Tisk a vytvoření jednoho PDF z více obrázků PNG/JPG/BMP.
+- Volitelné procházení předchozích i následujících PDF ve stejné složce v přirozeném pořadí názvů. **Pokračovat dalším souborem** zapnete na liště nebo v **Nastavení**. Při každém spuštění je volba vypnutá.
+- Čeština a angličtina: **Nastavení → Jazyk**, změna se projeví po restartu.
+
+Otočení mění vzhled zobrazení, exportu a tisku, původní PDF nemění. Export obrázků ukládá vykreslené stránky, ne původní vložené obrázky.
+
+## Aktualizace
+
+Vyberte **Nastavení → Aktualizace…**. Po potvrzení aplikace stáhne novou verzi, nainstaluje ji a znovu otevře dokument. Funkce je dostupná pro instalovanou Windows edici. Aplikace nekontroluje aktualizace při startu a nemá trvalou aktualizační službu.
+
+## Klávesové zkratky
+
+| Akce | Zkratka |
+|---|---|
+| Otevřít / zavřít PDF | Ctrl+O / Ctrl+W |
+| Hledat / tisk / export stránek | Ctrl+F / Ctrl+P / Ctrl+E |
 | Předchozí / další stránka | PageUp / PageDown |
-| První / poslední | Ctrl+Home / Ctrl+End |
+| První / poslední stránka | Ctrl+Home / Ctrl+End |
 | Zoom | Ctrl+kolečko, Ctrl+plus / Ctrl+minus |
-| 100 % / šířka / celá stránka | Ctrl+0 / Ctrl+1 / Ctrl+2 |
+| Skutečná velikost / šířka / celá stránka | Ctrl+0 / Ctrl+1 / Ctrl+2 |
 | Otočit doprava / doleva | Ctrl+R / Ctrl+Shift+R |
-| Posun | Kolečko, posuvníky, prostřední tlačítko |
-| Výběr textu / výřezu | Tlačítka Text / Výřez nebo Alt+T / Alt+X |
-| Kopírovat vybraný text / obrázek | Ctrl+C |
-| Uložit výřez | Pravé tlačítko → Uložit výřez… |
-| Zrušit výběr | Escape |
+| Výběr textu / výřezu | Alt+T / Alt+X |
+| Kopírovat výběr / zrušit výběr | Ctrl+C / Escape |
 
-## Architektura a licence
+## Licence a podpora
 
-[Architektura](docs/ARCHITECTURE.md), [měření](docs/PERFORMANCE.md), [licenční podmínky](licenses/THIRD-PARTY.md).
+Vlastní kód Airlet PDF je dostupný pod [licencí MIT](LICENSE). Přiložené knihovny si zachovávají své licence; viz [oznámení ke knihovnám třetích stran](licenses/THIRD-PARTY.md). Licence a odpovídající zdrojový kód Qt jsou součástí instalace.
 
-Repozitář Airlet PDF je veřejný; samostatná licence ke zdrojovému kódu aplikace nebyla vlastníkem určena. Práva ke knihovnám Qt a PDFium jejich licence nemění. Při distribuci jsou zachována práva příjemce k výměně LGPL knihoven a ladění jejich změn.
+Chyby a návrhy hlaste přes [GitHub Issues](https://github.com/zafodtom/airlet-pdf/issues). Uveďte verzi Windows, verzi aplikace a postup zopakování problému. Nenahrávejte důvěrné dokumenty.

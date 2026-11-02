@@ -26,12 +26,20 @@
 - Přirozené číselné řazení, žádná rekurze/watchery, kontrola zpožděných výsledků a potlačení doznívajícího kolečka.
 - Čeština/angličtina v menu, uložená volba se projeví po restartu. Anglické vlastní dialogy i chyby procesových úloh; také anglická instalace.
 
-## 0.6.0 – čeká na Windows ověření
+## 0.6.0 – ověřeno Windows CI #11, publikováno
 
 - Procházení PDF oběma směry; předchozí soubor se otevře na konci.
 - Nastavení → Jazyk / Pokračovat dalším souborem / Aktualizace, lokalizované názvy.
 - Ruční aktualizace instalované Windows edice z veřejných GitHub Releases, oddělené síťové UI a nativní instalátorový handoff. Bez startovních/periodických kontrol.
 - Ruční workflow má volbu publish_release pro stabilní tag a balíčky; po prvním sestavení je potřeba ještě praktická zkouška 0.6.0 → vyšší verze na Windows.
+
+## 0.6.1 – připraveno pro Windows sestavení
+
+- Celá stránka při otevření každého PDF; označení aktivního režimu zobrazení.
+- Pokračování soubory jednou společnou volbou v menu i na liště.
+- Uživatelské README anglicky a česky, standardní O aplikaci, vlastní kód pod MIT.
+- Praktický přechod 0.6.0 → 0.6.1 přes aktualizace čeká na Windows ověření.
+- Podpis certifikátem odložen podle pokynu uživatele.
 
 ## Nyní nepřidávat
 

@@ -32,6 +32,10 @@ class PdfView final : public QAbstractScrollArea {
     double zoom() const {
         return scale;
     }
+    enum class ViewMode { Manual, Width, Page };
+    ViewMode viewMode() const {
+        return static_cast<ViewMode>(fitMode);
+    }
     void setZoom(double value, QPoint anchor = {-1, -1});
     void fitWidth();
     void fitPage();
@@ -63,6 +67,7 @@ class PdfView final : public QAbstractScrollArea {
     void openFailed(QString path, airlet::OpenResult result);
     void pageChanged(int page, int total);
     void zoomChanged(double scale);
+    void viewModeChanged();
     void firstImage(qint64 openMs);
     void fileDropped(QString path);
     void nextDocumentRequested();
@@ -122,7 +127,8 @@ class PdfView final : public QAbstractScrollArea {
     int pageAtPoint(QPointF viewportPoint) const;
     void updateTextSelection();
     QRectF areaBounds() const;
-    int fitMode = 1; // 0 manual, 1 width, 2 page
+    void setFitMode(int value);
+    int fitMode = 2; // 0 manual, 1 width, 2 page
     double documentWidth = 0;
     QRectF pageRect(int index) const;
     int pageAtY(double y) const;
