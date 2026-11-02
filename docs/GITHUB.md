@@ -2,7 +2,7 @@
 
 Repozitář: https://github.com/zafodtom/airlet-pdf
 
-Dne 2. 11. 2026 bylo přes GitHub připojení ověřeno, že repozitář je **soukromý**, má výchozí větev `main` a účet `zafodtom` má oprávnění admin/push. Před prvním nahráním neměl žádné větve ani obsah. Repozitář založil vlastník; připojení samo operaci pro vytváření repozitářů nemá.
+Dne 2. 11. 2026 bylo přes GitHub připojení ověřeno, že repozitář byl při založení **soukromý**, má výchozí větev `main` a účet `zafodtom` má oprávnění admin/push. Před prvním nahráním neměl žádné větve ani obsah. Repozitář založil vlastník; připojení samo operaci pro vytváření repozitářů nemá.
 
 Implementace je nahraná v tomto repozitáři. Žádný jiný projekt ani existující uživatelský obsah se nepřepisuje. Do Git nepřidávat `.deps`, `build`, soukromá PDF ani výkonové záznamy s názvy soukromých souborů.
 
@@ -31,3 +31,5 @@ Aktuální větev main obsahuje 0.2.0 s upraveným kolečkem, textovým výběre
 ## 0.3.0
 
 0.2.0 úspěšně prošla během #3 (41479675732). Aktuální main obsahuje 0.3.0 s exportem celých stránek do PNG/JPG. Pro její instalátor je nutný nový Run workflow pro main.
+
+Od pokynu vlastníka 2. 11. 2026 je repozitář veřejný (ověřeno API). Ruční workflow od 0.6.0 nabízí boolean publish_release, výchozí false. Po úspěšných testech/balení vytvoří nový stabilní tag/release a nahraje instalační EXE, portable ZIP, SHA256SUMS.txt a airlet-update.json. Existující verze se nepřepisují. Publikace vyžaduje contents: write v tomto ručním jobu; nevznikají žádné push/tag/schedule triggery.

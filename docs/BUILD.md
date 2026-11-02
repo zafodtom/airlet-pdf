@@ -13,14 +13,14 @@ Z kořene zdrojů:
 .\scripts\build-windows.ps1
 ```
 
-Verze 0.4.1 prošla Windows CI #8 včetně testů a instalátoru. Verze 0.5.0 vyžaduje nové ruční sestavení.
+Verze 0.5.0 prošla Windows CI #9. Verze 0.6.0 vyžaduje nové ruční sestavení; volba publish_release navíc zveřejní stabilní balíček pro ruční aktualizace v aplikaci.
 
 Skript stáhne QtBase binární archiv, odpovídající zdroje QtBase a PDFium, každý ověří SHA256 a připraví `.deps`. Následuje Visual Studio x64 Release sestavení, testy, staging, windeployqt, app-local MSVC DLL a Inno Setup. Není potřeba Qt účet ani placený SDK. Aplikace pro běh nepotřebuje Python, 7-Zip, CMake ani Visual Studio.
 
 Výsledky:
 
-- `dist/AirletPDF-Setup-0.5.0-x64.exe`
-- `dist/AirletPDF-0.5.0-x64-portable.zip`
+- `dist/AirletPDF-Setup-0.6.0-x64.exe`
+- `dist/AirletPDF-0.6.0-x64-portable.zip`
 - `dist/SHA256SUMS.txt`
 
 Zdroje Qt jsou uvnitř obou variant v adresáři `sources`. Proto mají balíčky přibližně o 47 MiB více než samotný program. Soubory licencí jsou v `licenses`.
@@ -31,7 +31,7 @@ Nejde o bitově identické sestavení napříč měnícími se Windows SDK a MSV
 
 ## Ruční GitHub Actions
 
-Actions → **Windows Release (manual)** → Run workflow. Jediný job, maximálně 25 minut, build paralelně 2, uchování výsledků 3 dny. Žádné push/PR/schedule triggery. Artefakt `AirletPDF-0.5.0-x64` obsahuje oba balíčky a SHA256. Privátní artefakt vyžaduje přihlášení oprávněného uživatele. Workflow nepublikuje veřejný release.
+Actions → **Windows Release (manual)** → Run workflow. Jediný job, maximálně 25 minut, build paralelně 2, uchování výsledků 3 dny. Žádné push/PR/schedule triggery. Artefakt `AirletPDF-0.6.0-x64` obsahuje oba balíčky a SHA256. Privátní artefakt vyžaduje přihlášení oprávněného uživatele. Workflow nepublikuje veřejný release.
 
 ## Linux – vývojové ověření
 
@@ -48,3 +48,5 @@ Bez PDFIUM_ROOT se správný Linux x64 archiv automaticky stáhne a ověří př
 ## Čistá instalace
 
 Ověřit na Windows bez Qt/VS v PATH: instalace pouze pro uživatele, spuštění, dialog, drag/drop, cestu v argumentu, heslo, restart a odinstalaci. Registrace PDF je volitelný kandidát, nepíše UserChoice a nemění výchozí asociaci. Přiložené runtime knihovny jsou app-local a zaniknou s odinstalací.
+
+QtNetwork je nasazen pouze pro oddělený AirletUpdate.exe. AirletApplyUpdate.exe je nativní Win32 se statickým MSVC CRT a BCrypt/Shell32 ze systému. Aktualizační manifest se generuje až z hotového instalátoru včetně skutečné velikosti a SHA-256.

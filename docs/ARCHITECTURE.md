@@ -20,7 +20,7 @@ UI plánuje pouze při otevření, scrollu, resize, zoomu, otočení, změně ob
 
 Priorita: nízké rozlišení viditelných stran → ostré viditelné dlaždice 512×512 → nízké rozlišení jedné následující strany. Nízké rozlišení má max. 800×800 px. Cache ostrých dlaždic 96 MiB, cache malých obrazů 16 MiB; limity jsou automatické bez uživatelského nastavení. PDFium, fonty a metadata mají vlastní dodatečnou spotřebu, toto není limit celé aplikace.
 
-Po vyprázdnění fronty `condition_variable::wait` čeká bez timeoutu. Žádné kontroly aktualizací, síť, polling či vlastní cyklus překreslování. Pozdější OS paint pouze znovu vykreslí cache.
+Po vyprázdnění fronty `condition_variable::wait` čeká bez timeoutu. Žádné automatické kontroly aktualizací, síť při běžném prohlížení, polling či vlastní cyklus překreslování. Pozdější OS paint pouze znovu vykreslí cache.
 
 ## Souřadnice
 
@@ -45,3 +45,7 @@ PNG/JPG kódování a zápis má samostatný ImageSaveJob bez PDFium volání. J
 ## Dokumentové nástroje (0.4.0)
 
 DocumentTools vlastní modeless hledací dialog a procesové úlohy. AirletExport přijímá mode search/print/images přes JSON stdin; heslo není v argumentech. Hledání neblokuje render mutex prohlížeče, drží nejvýše 2000 nálezů a při změně dotazu či dokumentu se staré callbacky odpojí před ukončením procesu. Tisk i tvorba PDF mají vlastní průběh, zrušení a úklid pracovní složky. Pomocné procesy se při zavření připojí po kill, aby nepřežily aplikaci. Žádný nový polling ani periodická práce v klidu. Viz [nástroje](DOCUMENT-TOOLS.md).
+
+## Ruční aktualizace (0.6.0)
+
+AirletPDF.exe neodkazuje na QtNetwork. Menu spustí AirletUpdate.exe s vlastním QApplication/QtNetwork pouze na výslovný požadavek. Zavíratelné UI kontroluje veřejné stabilní vydání, manifest a kontrolní součet. Prohlížeč zůstává po dobu tohoto dialogu zakázaný, a dialog nelze otevřít během exportu/tisku/tvorby PDF. Po potvrzení a zániku síťového procesu předá viewer úlohu kopii AirletApplyUpdate.exe v soukromém temp adresáři a zavře se. Tento nativní Win32 helper má statický CRT a žádné Qt DLL, čeká na konec vieweru, znovu ověří SHA-256 a drží instalátor zamčený proti změnám během instalace. Inno Setup aktualizuje soubory do stejné složky a helper pak znovu otevře aplikaci se zdrojovou cestou PDF. Žádná trvalá služba, registrace startu nebo naplánovaná úloha. Viz [aktualizace](UPDATES.md).

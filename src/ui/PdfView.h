@@ -12,7 +12,7 @@ class PdfView final : public QAbstractScrollArea {
   public:
     enum class SelectionMode { Text, Area };
     explicit PdfView(QWidget *parent = nullptr);
-    void openFile(const QString &path, const QString &password = {});
+    void openFile(const QString &path, const QString &password = {}, bool startAtEnd = false);
     void closeDocument();
     QString exportPassword() const {
         return password;
@@ -22,6 +22,7 @@ class PdfView final : public QAbstractScrollArea {
     }
     void goToPage(int page);
     void nextPage();
+    void previousPage();
     void setContinueToNextDocument(bool enabled);
     void suppressNavigationInput();
     int currentPage() const;
@@ -65,6 +66,7 @@ class PdfView final : public QAbstractScrollArea {
     void firstImage(qint64 openMs);
     void fileDropped(QString path);
     void nextDocumentRequested();
+    void previousDocumentRequested();
     void selectionChanged();
     void selectionNotice(QString message);
     void selectionImageReady(quint64 request, QImage image, QString error);
@@ -102,10 +104,12 @@ class PdfView final : public QAbstractScrollArea {
     QPoint dragPosition;
     bool continueDocuments = false, navigationHeld = false, lastPageReady = false;
     QElapsedTimer continuationCooldown, lastForwardInput;
-    int boundaryWheel = 0;
+    bool initialAtEnd = false;
+    int boundaryWheel = 0, boundaryDirection = 0;
     double boundaryPixels = 0;
     bool navigationBlocked();
     void requestNextDocument();
+    void requestPreviousDocument();
     int pageWheelRemainder = 0;
     double pagePixelRemainder = 0;
     SelectionMode mode = SelectionMode::Text;

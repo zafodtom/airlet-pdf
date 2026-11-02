@@ -1,7 +1,7 @@
-#include "i18n/Language.h"
 #include "DocumentTools.h"
 #include "MainWindow.h"
 #include "PdfView.h"
+#include "i18n/Language.h"
 #include <QAction>
 #include <QCheckBox>
 #include <QCollator>
@@ -179,7 +179,8 @@ class DocumentTools::State {
                      : limited ? uiText(QStringLiteral(" · limit 2000 nálezů, upřesněte dotaz"))
                                : QString())
                 .arg(!searching && hits.isEmpty()
-                         ? noText ? uiText(QStringLiteral(" · dokument nemá textovou vrstvu (bez OCR)"))
+                         ? noText ? uiText(QStringLiteral(
+                                        " · dokument nemá textovou vrstvu (bez OCR)"))
                                   : uiText(QStringLiteral(" · nenalezeno"))
                          : QString()));
     }
@@ -243,7 +244,8 @@ class DocumentTools::State {
         if (operation) {
             QMessageBox::information(
                 window, title,
-                uiText(QStringLiteral("Nejprve dokončete nebo zrušte předchozí tisk či tvorbu PDF.")));
+                uiText(
+                    QStringLiteral("Nejprve dokončete nebo zrušte předchozí tisk či tvorbu PDF.")));
             return;
         }
         operation = new Task(window);
@@ -272,8 +274,9 @@ class DocumentTools::State {
             if (ok)
                 QMessageBox::information(
                     window, title,
-                    target.isEmpty() ? uiText(QStringLiteral("Dokument byl předán tiskárně."))
-                                     : uiText(QStringLiteral("PDF bylo vytvořeno:\n%1")).arg(target));
+                    target.isEmpty()
+                        ? uiText(QStringLiteral("Dokument byl předán tiskárně."))
+                        : uiText(QStringLiteral("PDF bylo vytvořeno:\n%1")).arg(target));
             else
                 QMessageBox::warning(window, title, error);
         };
@@ -305,6 +308,9 @@ DocumentTools::~DocumentTools() {
         delete d->operation;
     }
     delete d;
+}
+bool DocumentTools::isBusy() const {
+    return bool(d->operation);
 }
 void DocumentTools::find() {
     if (d->source.isEmpty())
@@ -410,8 +416,8 @@ void DocumentTools::print() {
     auto target = printer.outputFileName();
     if (pdf) {
         if (target.isEmpty())
-            target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Tisk do PDF")), {},
-                                                  QStringLiteral("PDF (*.pdf)"), nullptr,
+            target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Tisk do PDF")),
+                                                  {}, QStringLiteral("PDF (*.pdf)"), nullptr,
                                                   QFileDialog::DontConfirmOverwrite);
         if (target.isEmpty())
             return;
@@ -426,9 +432,9 @@ void DocumentTools::print() {
     d->run(job, uiText(QStringLiteral("Tisk dokumentu…")), pdf ? target : QString());
 }
 void DocumentTools::imagesPdf() {
-    auto files =
-        QFileDialog::getOpenFileNames(d->window, uiText(QStringLiteral("Vybrat obrázky pro nové PDF")), {},
-                                      uiText(QStringLiteral("Obrázky (*.png *.jpg *.jpeg *.bmp)")));
+    auto files = QFileDialog::getOpenFileNames(
+        d->window, uiText(QStringLiteral("Vybrat obrázky pro nové PDF")), {},
+        uiText(QStringLiteral("Obrázky (*.png *.jpg *.jpeg *.bmp)")));
     if (files.isEmpty())
         return;
     QCollator order;
@@ -488,8 +494,8 @@ void DocumentTools::imagesPdf() {
     connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() != QDialog::Accepted || !list.count())
         return;
-    auto target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Uložit nové PDF")), {},
-                                               QStringLiteral("PDF (*.pdf)"), nullptr,
+    auto target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Uložit nové PDF")),
+                                               {}, QStringLiteral("PDF (*.pdf)"), nullptr,
                                                QFileDialog::DontConfirmOverwrite);
     if (target.isEmpty())
         return;

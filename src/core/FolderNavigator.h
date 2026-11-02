@@ -11,7 +11,7 @@ class FolderNavigator final : public QObject {
   public:
     explicit FolderNavigator(QObject *parent = nullptr);
     ~FolderNavigator() override;
-    quint64 request(const QString &current);
+    quint64 request(const QString &current, int direction = 1);
   signals:
     void resolved(quint64 request, QString current, QString next);
 
@@ -19,6 +19,7 @@ class FolderNavigator final : public QObject {
     std::mutex mutex;
     std::condition_variable condition;
     QString pending;
+    int pendingDirection = 1;
     std::atomic<quint64> generation{0};
     bool stopping = false;
     std::jthread thread;

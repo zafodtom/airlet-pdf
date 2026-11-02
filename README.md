@@ -1,17 +1,18 @@
-# Airlet PDF 0.5.0
+# Airlet PDF 0.6.0
 
-Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Žádné účty, cloud, síťové požadavky, telemetrie ani proces po zavření.
+Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Prohlížení bez účtů, cloudu a telemetrie. Síť se používá výhradně po ruční volbě aktualizací; bez kontroly při startu a bez periodické služby.
 
-**Stav 0.5.0:** volitelné pokračování dalším PDF ze stejné složky a české/anglické rozhraní. Nová verze čeká na ruční Windows sestavení.
+**Stav 0.6.0:** procházení souborů oběma směry, nabídka Nastavení a ruční integrované aktualizace instalované Windows edice. Nová verze čeká na ruční Windows sestavení a ověření instalace aktualizace na cílovém PC.
 
-Poslední ověřený Windows balíček: [0.4.1 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41491443921/artifacts/13163389111), úspěšný běh #8. Artefakty se uchovávají 3 dny.
+Poslední ověřený Windows balíček: [0.5.0 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41507164928/artifacts/13170954187), úspěšný běh #9. Artefakty se uchovávají 3 dny; stabilní vydání pro aktualizace jsou v [GitHub Releases](https://github.com/zafodtom/airlet-pdf/releases).
 
-**English:** Airlet PDF is a fast, local Windows PDF viewer. Choose **Jazyk / Language → English** and restart the application. The toolbar's **Continue to next PDF** switch is off at every startup. When enabled, scrolling beyond the end opens the next PDF in the same folder in natural filename order; reaching the last page alone does not switch files.
+**English:** Choose **Nastavení → Jazyk → English** and restart the application. Settings contains **Language**, **Continue between files** (off at startup), and **Updates**. With file continuation enabled, scrolling past the end opens the next PDF; scrolling before the start opens the previous PDF at its last page. Integrated updates support the installed Windows edition and run only when requested. Portable packages are updated manually.
 
 ## Implementováno
 
-- Přepínač **Pokračovat dalším PDF** na liště je při každém spuštění vypnutý. Další posun za koncem otevře následující PDF ve stejné složce, podle názvu s číselným řazením. Platí i pro jednostránkové dokumenty; na konci složky se nevrací na začátek. [Podrobnosti](docs/FOLDER-AND-LANGUAGE.md).
-- Menu **Jazyk / Language**: čeština (výchozí) nebo angličtina, uložená volba se projeví po novém spuštění. Dialogy systému Windows se řídí jazykem systému.
+- **Nastavení → Pokračovat dalším souborem**: výchozí stav vypnuto, přechod na následující i předchozí PDF ze stejné složky v přirozeném pořadí názvů. Na hranicích složky bez smyčky. [Podrobnosti](docs/FOLDER-AND-LANGUAGE.md).
+- **Nastavení → Jazyk**: čeština (výchozí) nebo angličtina, volba se projeví po restartu. Anglické menu používá Settings → Language. Systémové dialogy používají jazyk Windows.
+- **Nastavení → Aktualizace…**: ruční kontrola veřejných GitHub Releases, stažení s SHA-256, potvrzení restartu, tichá instalace a nové otevření PDF. Pro instalovanou Windows edici; bez automatických kontrol. [Postup a ověření](docs/UPDATES.md).
 - Soubor: Otevřít, Zavřít, Export; Nápověda: O aplikaci. Tyto položky nejsou v nástrojové liště; klávesové zkratky zůstávají.
 - Vlastní ikona v okně, Windows EXE, zástupcích, instalátoru a asociaci PDF.
 - Otevření dialogem, přetažením a cestou v argumentu; české Unicode cesty; heslo.
@@ -35,14 +36,14 @@ Poslední ověřený Windows balíček: [0.4.1 – instalátor a portable](https
 
 ## Sestavení a instalace
 
-Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.5.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor zaregistruje Airlet PDF pro příponu .pdf a na závěrečné stránce nabídne otevření nastavení výchozích aplikací. Ve Windows 11 se otevře stránka Airlet PDF, ve Windows 10 obecná volba výchozích aplikací. Změnu dokončí uživatel v systémovém rozhraní.
+Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.6.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor zaregistruje Airlet PDF pro příponu .pdf a na závěrečné stránce nabídne otevření nastavení výchozích aplikací. Ve Windows 11 se otevře stránka Airlet PDF, ve Windows 10 obecná volba výchozích aplikací. Změnu dokončí uživatel v systémovém rozhraní.
 
 ```powershell
 # V Developer PowerShell for VS 2022, po přípravě závislostí:
 .\scripts\build-windows.ps1
 ```
 
-Soukromý repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-pdf). [docs/GITHUB.md](docs/GITHUB.md) popisuje ruční spuštění Windows sestavení.
+Repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-pdf). [docs/GITHUB.md](docs/GITHUB.md) popisuje ruční spuštění Windows sestavení.
 
 ## Ovládání
 
@@ -67,4 +68,4 @@ Soukromý repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-
 
 [Architektura](docs/ARCHITECTURE.md), [měření](docs/PERFORMANCE.md), [licenční podmínky](licenses/THIRD-PARTY.md).
 
-Zdrojový kód Airlet PDF zůstává soukromý; nebyla mu bez rozhodnutí vlastníka přidělena veřejná licence. Práva ke knihovnám Qt a PDFium jejich licence nemění. Při distribuci jsou zachována práva příjemce k výměně LGPL knihoven a ladění jejich změn.
+Repozitář Airlet PDF je veřejný; samostatná licence ke zdrojovému kódu aplikace nebyla vlastníkem určena. Práva ke knihovnám Qt a PDFium jejich licence nemění. Při distribuci jsou zachována práva příjemce k výměně LGPL knihoven a ladění jejich změn.

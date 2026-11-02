@@ -1,7 +1,7 @@
 # Airlet PDF
 
-- C++20, Qt 6 Widgets, PDFium. Runtime bez Pythonu, WebView, telemetrie, sítě a updateru.
-- Soukromý projekt `zafodtom/airlet-pdf`; nikdy jej nenahrazovat veřejným repozitářem.
+- C++20, Qt 6 Widgets, PDFium. Runtime bez Pythonu, WebView a telemetrie. Síť pouze v odděleném pomocném procesu na výslovnou ruční kontrolu aktualizací; nikdy při startu ani periodicky.
+- Projekt `zafodtom/airlet-pdf` je od pokynu uživatele veřejný. Neměnit jeho viditelnost ani licence bez dalšího pokynu.
 - Priorita: první správný obraz, plynulost, klid bez vlastní periodické práce.
 - Veškerá PDFium API v `src/pdfium`, žádné PDFium typy mimo tento modul.
 - Volání PDFium serializovat globálně; dokument a QFile vlastní worker. Dlouhý export v budoucnu izolovat do samostatného procesu, ne do paralelního PDFium vlákna.

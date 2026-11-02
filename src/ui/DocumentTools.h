@@ -11,6 +11,7 @@ class DocumentTools final : public QObject {
     void find();
     void print();
     void imagesPdf();
+    bool isBusy() const;
 
   private:
     class State;

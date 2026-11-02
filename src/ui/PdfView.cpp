@@ -54,9 +54,11 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
             fitPage();
         else
             schedule();
-        goToPage(0);
+        goToPage(initialAtEnd ? result.pages - 1 : 0);
+        if (initialAtEnd)
+            verticalScrollBar()->setValue(verticalScrollBar()->maximum());
         emit documentOpened(path, result.pages);
-        emit pageChanged(1, result.pages);
+        emit pageChanged(currentPage() + 1, result.pages);
     });
     connect(&service, &RenderService::rendered, this, &PdfView::acceptResult);
     connect(&service, &RenderService::textReady, this,
@@ -86,8 +88,9 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
                     emit selectionImageProgress(request, percent);
             });
 }
-void PdfView::openFile(const QString &p, const QString &password) {
+void PdfView::openFile(const QString &p, const QString &password, bool startAtEnd) {
     closeDocument();
+    initialAtEnd = startAtEnd;
     path = p;
     this->password = password;
     openingTimer.start();
@@ -102,6 +105,7 @@ void PdfView::closeDocument() {
     ++session;
     service.close(session);
     boundaryWheel = 0;
+    boundaryDirection = 0;
     boundaryPixels = 0;
     pageWheelRemainder = 0;
     pagePixelRemainder = 0;
@@ -156,6 +160,7 @@ void PdfView::rebuildLayout() {
 void PdfView::setContinueToNextDocument(bool enabled) {
     continueDocuments = enabled;
     boundaryWheel = 0;
+    boundaryDirection = 0;
     boundaryPixels = 0;
     if (!enabled)
         navigationHeld = false;
@@ -165,6 +170,7 @@ void PdfView::suppressNavigationInput() {
     continuationCooldown.start();
     lastForwardInput.start();
     boundaryWheel = 0;
+    boundaryDirection = 0;
     boundaryPixels = 0;
 }
 bool PdfView::navigationBlocked() {
@@ -181,6 +187,20 @@ void PdfView::requestNextDocument() {
         return;
     suppressNavigationInput();
     emit nextDocumentRequested();
+}
+void PdfView::requestPreviousDocument() {
+    if (!continueDocuments || pages.isEmpty() || firstPending)
+        return;
+    suppressNavigationInput();
+    emit previousDocumentRequested();
+}
+void PdfView::previousPage() {
+    if (navigationBlocked())
+        return;
+    if (!pages.isEmpty() && (currentPage() == 0 || verticalScrollBar()->value() == 0))
+        requestPreviousDocument();
+    else
+        goToPage(currentPage() - 1);
 }
 void PdfView::nextPage() {
     if (navigationBlocked())
@@ -362,6 +382,10 @@ void PdfView::acceptResult(quint64 s, quint64 g, RenderRequest r, PageInfo info,
                     fitPage();
                 else
                     schedule();
+                if (initialAtEnd) {
+                    goToPage(pages.size() - 1);
+                    verticalScrollBar()->setValue(verticalScrollBar()->maximum());
+                }
                 viewport()->update();
             });
         }
@@ -369,8 +393,13 @@ void PdfView::acceptResult(quint64 s, quint64 g, RenderRequest r, PageInfo info,
     }
     if (image.isNull())
         return;
-    if (r.page == pages.size() - 1)
+    if (r.page == pages.size() - 1) {
         lastPageReady = true;
+        if (initialAtEnd) {
+            verticalScrollBar()->setValue(verticalScrollBar()->maximum());
+            initialAtEnd = false;
+        }
+    }
     if (r.preview)
         previews.put(r.key, image);
     else
@@ -501,24 +530,35 @@ void PdfView::wheelEvent(QWheelEvent *e) {
             !e->pixelDelta().isNull() ? e->pixelDelta().y() / 120. : e->angleDelta().y() / 120.;
         setZoom(scale * std::pow(1.15, steps), e->position().toPoint());
         e->accept();
-    } else if ((e->pixelDelta().y() < 0 || (e->pixelDelta().isNull() && e->angleDelta().y() < 0)) &&
-               navigationBlocked()) {
+    } else if ((e->pixelDelta().y() != 0 || e->angleDelta().y() != 0) && navigationBlocked()) {
         e->accept();
     } else if (continueDocuments && !pages.isEmpty() && fitMode != 2 &&
                !(e->modifiers() & Qt::ShiftModifier) &&
-               verticalScrollBar()->value() == verticalScrollBar()->maximum() &&
-               (e->pixelDelta().y() < 0 || (e->pixelDelta().isNull() && e->angleDelta().y() < 0))) {
+               ((verticalScrollBar()->value() == verticalScrollBar()->maximum() &&
+                 (e->pixelDelta().y() < 0 ||
+                  (e->pixelDelta().isNull() && e->angleDelta().y() < 0))) ||
+                (verticalScrollBar()->value() == 0 &&
+                 (e->pixelDelta().y() > 0 ||
+                  (e->pixelDelta().isNull() && e->angleDelta().y() > 0))))) {
         if (e->phase() != Qt::ScrollMomentum) {
-            if (e->phase() == Qt::ScrollBegin) {
+            const int direction =
+                (!e->pixelDelta().isNull() ? e->pixelDelta().y() : e->angleDelta().y()) < 0 ? 1
+                                                                                            : -1;
+            if (e->phase() == Qt::ScrollBegin || boundaryDirection != direction) {
                 boundaryWheel = 0;
                 boundaryPixels = 0;
             }
+            boundaryDirection = direction;
             if (!e->pixelDelta().isNull())
-                boundaryPixels -= e->pixelDelta().y();
+                boundaryPixels += std::abs(e->pixelDelta().y());
             else
-                boundaryWheel -= e->angleDelta().y();
-            if (boundaryWheel >= 120 || boundaryPixels >= 80)
-                requestNextDocument();
+                boundaryWheel += std::abs(e->angleDelta().y());
+            if (boundaryWheel >= 120 || boundaryPixels >= 80) {
+                if (direction > 0)
+                    requestNextDocument();
+                else
+                    requestPreviousDocument();
+            }
             if (e->phase() == Qt::ScrollEnd) {
                 boundaryWheel = 0;
                 boundaryPixels = 0;
@@ -547,6 +587,9 @@ void PdfView::wheelEvent(QWheelEvent *e) {
              verticalScrollBar()->value() == verticalScrollBar()->maximum()) &&
             e->phase() != Qt::ScrollMomentum)
             requestNextDocument();
+        else if (steps > 0 && (currentPage() == 0 || verticalScrollBar()->value() == 0) &&
+                 e->phase() != Qt::ScrollMomentum)
+            requestPreviousDocument();
         else if (steps)
             goToPage(currentPage() - steps);
         e->accept();

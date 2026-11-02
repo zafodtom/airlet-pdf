@@ -9,9 +9,11 @@
 #include "render/TileCache.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
+#include "update/UpdateProtocol.h"
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QCryptographicHash>
 #include <QDialog>
 #include <QDir>
 #include <QElapsedTimer>
@@ -90,6 +92,151 @@ class SlowEngine final : public PdfEngine {
 class TestAirlet final : public QObject {
     Q_OBJECT
   private slots:
+    void updateMetadataValidation() {
+        const QString hash(64, QChar('a'));
+        const auto installer = QStringLiteral("AirletPDF-Setup-1.2.0-x64.exe");
+        const auto prefix =
+            QStringLiteral("https://github.com/zafodtom/airlet-pdf/releases/download/v1.2.0/");
+        const QJsonObject asset{{"name", installer},
+                                {"browser_download_url", prefix + installer},
+                                {"size", 1024},
+                                {"digest", "sha256:" + hash}};
+        const QJsonObject manifestAsset{{"name", "airlet-update.json"},
+                                        {"browser_download_url", prefix + "airlet-update.json"}};
+        QJsonObject release{{"tag_name", "v1.2.0"},
+                            {"draft", false},
+                            {"prerelease", false},
+                            {"assets", QJsonArray{asset, manifestAsset}}};
+        UpdateRelease parsed;
+        QString error;
+        QCOMPARE(parseUpdateRelease(release, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        const QJsonObject manifest{
+            {"schema", 1},
+            {"version", "1.2.0"},
+            {"installer", QJsonObject{{"name", installer}, {"size", 1024}, {"sha256", hash}}}};
+        QVERIFY(validateUpdateManifest(manifest, &parsed, &error));
+        QCOMPARE(parsed.sha256, hash);
+        QCOMPARE(parseUpdateRelease(release, "1.2.0", &parsed, &error), ReleaseState::Current);
+        QCOMPARE(parseUpdateRelease(release, "2.0.0", &parsed, &error), ReleaseState::Current);
+        auto bad = release;
+        bad["prerelease"] = true;
+        QCOMPARE(parseUpdateRelease(bad, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        bad = release;
+        bad["tag_name"] = "v999999999999999.0.0";
+        QCOMPARE(parseUpdateRelease(bad, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        bad = release;
+        bad["assets"] = QJsonArray{asset, manifestAsset, asset};
+        QCOMPARE(parseUpdateRelease(bad, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        for (const auto &url :
+             {QString("http://github.com/zafodtom/airlet-pdf/releases/download/v1.2.0/") +
+                  installer,
+              QString("https://github.com/other/repo/releases/download/v1.2.0/") + installer,
+              QString("https://github.com.evil.invalid/") + installer}) {
+            auto altered = asset;
+            altered["browser_download_url"] = url;
+            bad = release;
+            bad["assets"] = QJsonArray{altered, manifestAsset};
+            QCOMPARE(parseUpdateRelease(bad, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        }
+        for (double size : {0., -1., .5, 1e300, 513. * 1024 * 1024}) {
+            auto altered = asset;
+            altered["size"] = size;
+            bad = release;
+            bad["assets"] = QJsonArray{altered, manifestAsset};
+            QCOMPARE(parseUpdateRelease(bad, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        }
+        QCOMPARE(parseUpdateRelease(release, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        auto broken = manifest;
+        auto altered = broken["installer"].toObject();
+        altered["sha256"] = QString(64, QChar('b'));
+        broken["installer"] = altered;
+        QVERIFY(!validateUpdateManifest(broken, &parsed, &error));
+        broken = manifest;
+        broken["version"] = "1.3.0";
+        QVERIFY(!validateUpdateManifest(broken, &parsed, &error));
+        QVERIFY(
+            allowedUpdateUrl(QUrl("https://release-assets.githubusercontent.com/signed/asset")));
+        QVERIFY(!allowedUpdateUrl(QUrl("file:///tmp/setup.exe")));
+        QVERIFY(!allowedUpdateUrl(QUrl("https://name:password@github.com/asset")));
+        QVERIFY(!allowedUpdateUrl(QUrl("https://github.com:8080/asset")));
+#ifdef Q_OS_WIN
+        QTemporaryDir dir;
+        QFile file(dir.filePath(QString::fromUtf8("ověření & data.bin")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("airlet verifier test");
+        file.close();
+        const auto sha = QString::fromLatin1(
+            QCryptographicHash::hash(QByteArray("airlet verifier test"), QCryptographicHash::Sha256)
+                .toHex());
+        auto verify = [&](QString hash) {
+            QProcess process;
+            process.start(QString::fromUtf8(APPLY_EXE), {"--verify", file.fileName(), hash});
+            if (!process.waitForFinished(10000))
+                return -1;
+            return process.exitCode();
+        };
+        QCOMPARE(verify(sha), 0);
+        QCOMPARE(verify(QString(64, QChar('0'))), 1);
+#endif
+    }
+    void backwardFolderContinuation() {
+        QTemporaryDir dir;
+        const auto one = dir.filePath("sheet1.pdf"), two = dir.filePath("sheet2.pdf");
+        QVERIFY(QFile::copy(fixture("mixed-pages.pdf"), one));
+        QVERIFY(QFile::copy(fixture("scan.pdf"), two));
+        FolderNavigator nav;
+        QSignalSpy result(&nav, &FolderNavigator::resolved);
+        nav.request(two, -1);
+        QTRY_COMPARE(result.size(), 1);
+        QCOMPARE(result[0][2].toString(), one);
+        MainWindow window;
+        window.show();
+        auto *view = window.pdfView();
+        auto *toggle = window.findChild<QAction *>("continueDocuments");
+        QVERIFY(toggle);
+        for (auto *bar : window.findChildren<QToolBar *>())
+            QVERIFY(!bar->actions().contains(toggle));
+        bool settings = false, language = false;
+        for (auto *a : window.findChildren<QAction *>()) {
+            settings |= a->text() == QString::fromUtf8("Nastavení");
+            language |= a->text() == QString::fromUtf8("Jazyk");
+            QVERIFY(a->text() != "Jazyk / Language");
+        }
+        QVERIFY(settings);
+        QVERIFY(language);
+        QSignalSpy opened(view, &PdfView::documentOpened), first(view, &PdfView::firstImage);
+        window.openFile(two);
+        QTRY_COMPARE(first.size(), 1);
+        toggle->setChecked(true);
+        wheel(*view, 120);
+        QTRY_COMPARE(opened.size(), 2);
+        QCOMPARE(opened[1][0].toString(), one);
+        QTRY_COMPARE(first.size(), 2);
+        QTRY_COMPARE(view->currentPage(), 2);
+        QTRY_COMPARE(view->verticalScrollBar()->value(), view->verticalScrollBar()->maximum());
+        for (int i = 0; i < 5; ++i)
+            wheel(*view, 120);
+        QTest::qWait(30);
+        QCOMPARE(opened.size(), 2);
+        QTest::qWait(650);
+        view->goToPage(0);
+        QTest::qWait(30);
+        wheel(*view, 120);
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains(QString::fromUtf8("předchozí")));
+        QCOMPARE(opened.size(), 2);
+        // Reaching the upper edge is distinct from moving beyond it.
+        toggle->setChecked(false);
+        toggle->setChecked(true);
+        window.openFile(two);
+        QTRY_COMPARE(first.size(), 3);
+        view->setZoom(3.);
+        view->verticalScrollBar()->setValue(1);
+        wheel(*view, 120);
+        QCOMPARE(opened.size(), 3);
+        wheel(*view, 120);
+        QTRY_COMPARE(opened.size(), 4);
+        QCOMPARE(opened[3][0].toString(), one);
+    }
     void folderOrderAndContinuation() {
         QVERIFY(compareDocumentNames("sheet2.pdf", "sheet10.pdf") < 0);
         QVERIFY(compareDocumentNames("sheet10.pdf", "sheet100.pdf") < 0);
@@ -201,13 +348,17 @@ class TestAirlet final : public QObject {
         QCOMPARE(languageCode(), QString("en"));
         {
             MainWindow window;
-            bool open = false, help = false;
+            bool open = false, help = false, settings = false, language = false;
             for (auto *a : window.findChildren<QAction *>()) {
                 open |= a->text() == QString::fromUtf8("Open…");
                 help |= a->text() == "Help";
+                settings |= a->text() == "Settings";
+                language |= a->text() == "Language";
             }
             QVERIFY(open);
             QVERIFY(help);
+            QVERIFY(settings);
+            QVERIFY(language);
         }
         QProcess worker;
         worker.start(QString::fromUtf8(EXPORT_EXE), {});

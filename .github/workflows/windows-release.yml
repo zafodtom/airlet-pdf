@@ -1,6 +1,11 @@
 name: Windows Release (manual)
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a stable public GitHub Release for in-app updates
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -8,6 +13,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   windows:
+    permissions:
+      contents: write
     runs-on: windows-2022
     timeout-minutes: 25
     steps:
@@ -18,7 +25,19 @@ jobs:
       - name: Installer and portable package (including Qt sources)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: AirletPDF-0.5.0-x64
+          name: AirletPDF-0.6.0-x64
           path: dist/*
           retention-days: 3
           if-no-files-found: error
+      - name: Publish stable release (explicit manual option)
+        if: ${{ inputs.publish_release }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $private = gh api "repos/$env:GITHUB_REPOSITORY" --jq '.private'
+          if ($LASTEXITCODE -ne 0 -or $private -ne 'false') { throw 'Public repository required for public updates.' }
+          gh release view v0.6.0 --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Release v0.6.0 already exists; never replace update assets. Bump the version instead.' }
+          gh release create v0.6.0 dist/AirletPDF-Setup-0.6.0-x64.exe dist/AirletPDF-0.6.0-x64-portable.zip dist/SHA256SUMS.txt dist/airlet-update.json --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title 'Airlet PDF 0.6.0' --notes-file docs/releases/0.6.0.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

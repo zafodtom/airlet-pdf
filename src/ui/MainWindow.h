@@ -32,7 +32,8 @@ class MainWindow final : public QMainWindow {
     FolderNavigator folderNavigator{this};
     QAction *continueAction = nullptr;
     quint64 pendingFolderRequest = 0;
-    bool automaticOpening = false;
+    bool automaticOpening = false, openPrevious = false;
+    int pendingFolderDirection = 1;
     QSpinBox *page;
     QLabel *count;
     QString lastFolder;
@@ -53,6 +54,11 @@ class MainWindow final : public QMainWindow {
     bool exportCancelled = false;
     void exportPages();
     void chooseFile();
+    void openDocument(const QString &path, bool startAtEnd);
+    void checkUpdates();
+    QProcess updateProcess;
+    std::unique_ptr<QTemporaryDir> updateTemporary;
+    QByteArray updateBuffer;
     void copySelection();
     void saveArea();
     void beginAreaOperation();

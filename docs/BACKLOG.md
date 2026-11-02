@@ -20,11 +20,18 @@
 - Vlastní ikona aplikace i instalátoru.
 - Per-user registrace pro PDF a volba otevřít Nastavení k potvrzení výchozí aplikace na konci instalace.
 
-## 0.5.0 – čeká na Windows ověření
+## 0.5.0 – ověřeno Windows CI #9
 
 - Volitelný přechod na další PDF ze složky po explicitním posunu za koncem, přepínač při startu vždy vypnutý.
 - Přirozené číselné řazení, žádná rekurze/watchery, kontrola zpožděných výsledků a potlačení doznívajícího kolečka.
 - Čeština/angličtina v menu, uložená volba se projeví po restartu. Anglické vlastní dialogy i chyby procesových úloh; také anglická instalace.
+
+## 0.6.0 – čeká na Windows ověření
+
+- Procházení PDF oběma směry; předchozí soubor se otevře na konci.
+- Nastavení → Jazyk / Pokračovat dalším souborem / Aktualizace, lokalizované názvy.
+- Ruční aktualizace instalované Windows edice z veřejných GitHub Releases, oddělené síťové UI a nativní instalátorový handoff. Bez startovních/periodických kontrol.
+- Ruční workflow má volbu publish_release pro stabilní tag a balíčky; po prvním sestavení je potřeba ještě praktická zkouška 0.6.0 → vyšší verze na Windows.
 
 ## Nyní nepřidávat
 
@@ -32,6 +39,6 @@
 - Změna pořadí, mazání a trvalé otočení existujících PDF stran.
 - Extrakce původních vložených obrázků; současný renderovaný export postačuje.
 - Historie otevřených dokumentů a zapamatování jejich pozice.
-- OCR, kancelářské převody, cloud, síťové kontroly a aktualizační služba.
+- OCR, kancelářské převody, cloud, automatické síťové kontroly a trvalá aktualizační služba.
 
 Další funkce se určují až podle nových pokynů a zkušeností uživatele.

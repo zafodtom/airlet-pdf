@@ -49,15 +49,17 @@ FolderNavigator::~FolderNavigator() {
     if (thread.joinable())
         thread.join();
 }
-quint64 FolderNavigator::request(const QString &current) {
+quint64 FolderNavigator::request(const QString &current, int direction) {
     std::lock_guard lock(mutex);
     const auto id = ++generation;
     pending = current;
+    pendingDirection = direction < 0 ? -1 : 1;
     if (!thread.joinable())
         thread = std::jthread([this] {
             for (;;) {
                 QString current;
                 quint64 id;
+                int direction;
                 {
                     std::unique_lock lock(mutex);
                     condition.wait(lock, [this] { return stopping || !pending.isEmpty(); });
@@ -65,6 +67,7 @@ quint64 FolderNavigator::request(const QString &current) {
                         return;
                     current = std::exchange(pending, {});
                     id = generation.load();
+                    direction = pendingDirection;
                 }
                 const QFileInfo source(current);
                 QString next;
@@ -73,10 +76,12 @@ quint64 FolderNavigator::request(const QString &current) {
                     it.next();
                     const auto file = it.fileInfo();
                     if (file.suffix().compare("pdf", Qt::CaseInsensitive) != 0 ||
-                        compareDocumentNames(file.fileName(), source.fileName()) <= 0)
+                        compareDocumentNames(file.fileName(), source.fileName()) * direction <= 0)
                         continue;
                     if (next.isEmpty() ||
-                        compareDocumentNames(file.fileName(), QFileInfo(next).fileName()) < 0)
+                        compareDocumentNames(file.fileName(), QFileInfo(next).fileName()) *
+                                direction <
+                            0)
                         next = file.absoluteFilePath();
                 }
                 if (generation.load() == id)

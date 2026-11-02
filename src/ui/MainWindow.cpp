@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     QSettings settings;
     restoreGeometry(settings.value("windowGeometry").toByteArray());
     lastFolder = settings.value("lastFolder").toString();
-    auto *languageMenu = new QMenu(QStringLiteral("Jazyk / Language"), this);
+    auto *languageMenu = new QMenu(uiText(QStringLiteral("Jazyk")), this);
     auto *languages = new QActionGroup(this);
     for (const auto &entry : {qMakePair(uiText(QStringLiteral("Čeština")), QStringLiteral("cs")),
                               qMakePair(QStringLiteral("English"), QStringLiteral("en"))}) {
@@ -55,43 +55,60 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         connect(a, &QAction::triggered, this, [this, code = entry.second] {
             QSettings().setValue("language", code);
             QMessageBox::information(
-                this, QStringLiteral("Jazyk / Language"),
+                this, uiText(QStringLiteral("Jazyk")),
                 uiText(QStringLiteral("Změna jazyka se projeví po novém spuštění aplikace.")));
         });
     }
+    auto *settingsMenu = new QMenu(uiText(QStringLiteral("Nastavení")), this);
+    settingsMenu->addMenu(languageMenu);
+    auto *updatesAction = settingsMenu->addAction(uiText(QStringLiteral("Aktualizace…")));
+    connect(updatesAction, &QAction::triggered, this, &MainWindow::checkUpdates);
     auto *bar = addToolBar(uiText(QStringLiteral("Dokument")));
     bar->setMovable(false);
     bar->setIconSize(QSize(18, 18));
-    continueAction = bar->addAction(uiText(QStringLiteral("Pokračovat dalším PDF")));
+    continueAction = settingsMenu->addAction(uiText(QStringLiteral("Pokračovat dalším souborem")));
     continueAction->setObjectName("continueDocuments");
+    settingsMenu->removeAction(updatesAction);
+    settingsMenu->addSeparator();
+    settingsMenu->addAction(updatesAction);
     continueAction->setCheckable(true);
     continueAction->setChecked(false);
     continueAction->setToolTip(
-        uiText(QStringLiteral("Za koncem dokumentu otevřít další PDF ze stejné složky podle názvu. "
-                              "Po spuštění je vždy vypnuto.")));
+        uiText(QStringLiteral("Na začátku či konci otevřít sousední PDF ze stejné složky. Po "
+                              "spuštění je vždy vypnuto.")));
     connect(continueAction, &QAction::toggled, this, [this](bool enabled) {
         pendingFolderRequest = 0;
         view->setContinueToNextDocument(enabled);
     });
     connect(view, &PdfView::nextDocumentRequested, this, [this] {
-        if (continueAction->isChecked() && !openedPath.isEmpty() && !pendingFolderRequest)
-            pendingFolderRequest = folderNavigator.request(openedPath);
+        if (continueAction->isChecked() && !openedPath.isEmpty() && !pendingFolderRequest) {
+            pendingFolderDirection = 1;
+            pendingFolderRequest = folderNavigator.request(openedPath, 1);
+        }
     });
-    connect(
-        &folderNavigator, &FolderNavigator::resolved, this,
-        [this](quint64 id, QString source, QString next) {
-            if (id != pendingFolderRequest || !continueAction->isChecked() || openedPath != source)
-                return;
-            pendingFolderRequest = 0;
-            if (next.isEmpty()) {
-                statusBar()->showMessage(uiText(QStringLiteral("Ve složce už není další PDF.")));
-                return;
-            }
-            openFile(next);
-            automaticOpening = true;
-            view->suppressNavigationInput();
-        });
-    bar->addSeparator();
+    connect(view, &PdfView::previousDocumentRequested, this, [this] {
+        if (continueAction->isChecked() && !openedPath.isEmpty() && !pendingFolderRequest) {
+            pendingFolderDirection = -1;
+            pendingFolderRequest = folderNavigator.request(openedPath, -1);
+        }
+    });
+    connect(&folderNavigator, &FolderNavigator::resolved, this,
+            [this](quint64 id, QString source, QString next) {
+                if (id != pendingFolderRequest || !continueAction->isChecked() ||
+                    openedPath != source)
+                    return;
+                pendingFolderRequest = 0;
+                if (next.isEmpty()) {
+                    statusBar()->showMessage(
+                        pendingFolderDirection > 0
+                            ? uiText(QStringLiteral("Ve složce už není další PDF."))
+                            : uiText(QStringLiteral("Ve složce není předchozí PDF.")));
+                    return;
+                }
+                openDocument(next, pendingFolderDirection < 0);
+                automaticOpening = true;
+                view->suppressNavigationInput();
+            });
     auto action = [&](const QString &text, const QKeySequence &shortcut, auto fn) {
         auto *a = bar->addAction(text);
         a->setShortcut(shortcut);
@@ -131,12 +148,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     fileMenu->addAction(printAction);
     fileMenu->addAction(close);
     menuBar()->addMenu(uiText(QStringLiteral("Úpravy")))->addAction(findAction);
-    menuBar()->addMenu(languageMenu);
+    menuBar()->addMenu(settingsMenu);
     QList<QAction *> documentActions{close, exportAction, findAction, printAction};
     documentActions << action(QStringLiteral("|◀"), QKeySequence(Qt::CTRL | Qt::Key_Home),
                               [this] { view->goToPage(0); });
     documentActions << action(QStringLiteral("◀"), QKeySequence(Qt::Key_PageUp),
-                              [this] { view->goToPage(view->currentPage() - 1); });
+                              [this] { view->previousPage(); });
     page = new QSpinBox(bar);
     page->setRange(1, 1);
     page->setKeyboardTracking(false);
@@ -308,7 +325,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 this, uiText(QStringLiteral("Chráněné PDF")),
                 uiText(QStringLiteral("Heslo dokumentu:")), QLineEdit::Password, {}, &ok);
             if (ok)
-                view->openFile(p, password);
+                view->openFile(p, password, openPrevious);
         } else
             QMessageBox::warning(this, QStringLiteral("Airlet PDF"), result.message);
     });
@@ -429,6 +446,12 @@ void MainWindow::endAreaOperation() {
     }
 }
 MainWindow::~MainWindow() {
+    updateProcess.disconnect(this);
+    if (updateProcess.state() != QProcess::NotRunning) {
+        updateProcess.kill();
+        updateProcess.waitForFinished(3000);
+    }
+    updateTemporary.reset();
     delete tools;
     exportProcess.disconnect(this);
     if (exportProcess.state() != QProcess::NotRunning) {
@@ -605,15 +628,25 @@ void MainWindow::chooseFile() {
         openFile(p);
 }
 void MainWindow::openFile(const QString &p) {
+    openDocument(p, false);
+}
+void MainWindow::openDocument(const QString &p, bool startAtEnd) {
     if (!p.isEmpty()) {
         pendingFolderRequest = 0;
         automaticOpening = false;
         openedPath.clear();
         setWindowTitle(QStringLiteral("Airlet PDF"));
-        view->openFile(QFileInfo(p).absoluteFilePath());
+        openPrevious = startAtEnd;
+        view->openFile(QFileInfo(p).absoluteFilePath(), {}, startAtEnd);
     }
 }
 void MainWindow::closeEvent(QCloseEvent *e) {
+    updateProcess.disconnect(this);
+    if (updateProcess.state() != QProcess::NotRunning) {
+        updateProcess.kill();
+        updateProcess.waitForFinished(3000);
+    }
+    updateTemporary.reset();
     exportProcess.disconnect(this);
     if (exportProcess.state() != QProcess::NotRunning) {
         exportProcess.kill();
