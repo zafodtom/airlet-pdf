@@ -302,8 +302,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         box.setTextFormat(Qt::RichText);
         box.setText(
             QStringLiteral("<h3>Airlet PDF %1</h3><p>%2</p>"
-                           "<p>© 2026 zafodtom &amp; Airlet PDF contributors</p>"
-                           "<p><a href=\"https://github.com/zafodtom/trimenor\">Trimenor</a></p>"
+                           "<p>© 2026 Trimenor &amp; Airlet PDF contributors</p>"
+                           ""
                            "<p>%3</p><p><a href=\"https://github.com/zafodtom/airlet-pdf\">%4</a>"
                            " · <a href=\"%5\">%6</a> · <a href=\"%7\">%8</a></p>")
                 .arg(QCoreApplication::applicationVersion().toHtmlEscaped(),
