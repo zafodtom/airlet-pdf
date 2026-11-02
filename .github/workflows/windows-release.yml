@@ -1,0 +1,24 @@
+name: Windows Release (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: airlet-windows-release
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build, test, package
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+      - name: Installer and portable package (including Qt sources)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: AirletPDF-0.1.0-x64
+          path: dist/*
+          retention-days: 3
+          if-no-files-found: error

@@ -1,0 +1,28 @@
+{
+  "qt_version": "6.8.3",
+  "pdfium_version": "chromium/8125",
+  "files": {
+    "qt_windows": {
+      "name": "qtbase-windows.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_683/qt6_683/qt.qt6.683.win64_msvc2022_64/6.8.3-0-202503201308qtbase-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-X86_64.7z",
+      "sha256": "41688269fac0565db956c66d9eecae777d16197e0c02cd81b88640c1f5d73d3f",
+      "size": 39484220
+    },
+    "qt_source": {
+      "name": "qtbase-source.tar.xz",
+      "url": "https://download.qt.io/archive/qt/6.8/6.8.3/submodules/qtbase-everywhere-src-6.8.3.tar.xz",
+      "sha256": "56001b905601bb9023d399f3ba780d7fa940f3e4861e496a7c490331f49e0b80",
+      "size": 48426536
+    },
+    "pdfium_win": {
+      "name": "pdfium-win-x64.tgz",
+      "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/8125/pdfium-win-x64.tgz",
+      "sha256": "9a964261760cff52570aabf038ab346d3a5034dd8b30d0d5fe8861235d356b8b"
+    },
+    "pdfium_linux": {
+      "name": "pdfium-linux-x64.tgz",
+      "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/8125/pdfium-linux-x64.tgz",
+      "sha256": "e1c3ce6e270cb5e0c20816b379ad9f2c1309972697c505f508de92bf5e7d6659"
+    }
+  }
+}

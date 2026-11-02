@@ -1,0 +1,90 @@
+{
+  "environment": {
+    "os": "Linux-6.18.57-x86_64-with-glibc2.39",
+    "cpu": "x86_64",
+    "logical_cpu_count": 9,
+    "gui_backend": "Qt offscreen",
+    "toolchain": "GCC 13.3.0, Qt 6.4.2, Release, PDFium chromium/8125"
+  },
+  "records": [
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 37,
+      "first_image_from_open_ms": 17,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 19,
+      "fixture": "basic.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 62.58,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    },
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 39,
+      "first_image_from_open_ms": 21,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 18,
+      "fixture": "basic.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 62.72,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    },
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 36,
+      "first_image_from_open_ms": 19,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 16,
+      "fixture": "basic.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 51.62,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    },
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 52,
+      "first_image_from_open_ms": 34,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 17,
+      "fixture": "technical-a0.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 72.41,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    },
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 32,
+      "first_image_from_open_ms": 18,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 13,
+      "fixture": "long.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 52.46,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    },
+    {
+      "build": "Release measurement requires Release binary",
+      "first_image_from_main_ms": 41,
+      "first_image_from_open_ms": 26,
+      "qt_version": "6.4.2",
+      "window_shown_from_main_ms": 14,
+      "fixture": "scan.pdf",
+      "run_kind": "new_process_cache_state_uncontrolled",
+      "externally_observed_ms": 62.96,
+      "idle_cpu": "not measured externally: virtualized procfs is unreliable",
+      "rss_bytes": null
+    }
+  ],
+  "limitations": [
+    "No Windows execution",
+    "No controlled cold filesystem cache",
+    "No compositor/display latency measured",
+    "Synthetic fixtures only",
+    "Process memory and external CPU counters unavailable in virtualized procfs"
+  ]
+}

@@ -1,0 +1,9 @@
+/build*/
+/out/
+/dist/
+/.deps/
+*.user
+*.log
+*.part
+*.tmp
+/measurements/
