@@ -8,7 +8,10 @@
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
 AppVersion=0.6.1
-AppPublisher=Airlet PDF
+AppPublisher=Trimenor
+AppPublisherURL=https://github.com/zafodtom/trimenor
+AppSupportURL=https://github.com/zafodtom/airlet-pdf/issues
+AppUpdatesURL=https://github.com/zafodtom/airlet-pdf/releases/latest
 DefaultDirName={localappdata}\Programs\Airlet PDF
 DefaultGroupName=Airlet PDF
 PrivilegesRequired=lowest

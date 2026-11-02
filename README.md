@@ -1,5 +1,7 @@
 # Airlet PDF
 
+**By [Trimenor](https://github.com/zafodtom/trimenor).**
+
 A fast, lightweight PDF viewer for **Windows 10 (1809 or later) and Windows 11, x64**. Free for personal and commercial use. No account, cloud upload, or telemetry.
 
 ## Download and install
@@ -49,6 +51,8 @@ Report problems or suggest improvements in [GitHub Issues](https://github.com/za
 ---
 
 # Airlet PDF — česky
+
+**Od [Trimenor](https://github.com/zafodtom/trimenor).**
 
 Rychlý a nenáročný prohlížeč PDF pro **Windows 10 (1809 a novější) a Windows 11, x64**. Zdarma pro osobní i komerční použití. Bez účtu, odesílání dokumentů do cloudu a telemetrie.
 
