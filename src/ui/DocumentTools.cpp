@@ -1,3 +1,4 @@
+#include "i18n/Language.h"
 #include "DocumentTools.h"
 #include "MainWindow.h"
 #include "PdfView.h"
@@ -61,9 +62,9 @@ class Task final : public QObject {
                     temporary.reset();
                     if (done)
                         done(!cancelled && code == 0 && status == QProcess::NormalExit && success,
-                             cancelled ? QStringLiteral("Operace byla zrušena.")
+                             cancelled ? uiText(QStringLiteral("Operace byla zrušena."))
                              : error.isEmpty()
-                                 ? QStringLiteral("Pomocný proces nedokončil operaci.")
+                                 ? uiText(QStringLiteral("Pomocný proces nedokončil operaci."))
                                  : error);
                     deleteLater();
                 });
@@ -108,6 +109,7 @@ class Task final : public QObject {
         }
     }
     void start(QJsonObject job) {
+        job["language"] = languageCode();
         connect(&process, &QProcess::started, this, [this, job] {
             process.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + '\n');
             process.closeWriteChannel();
@@ -172,13 +174,13 @@ class DocumentTools::State {
             QStringLiteral("%1 / %2%3%4")
                 .arg(hit < 0 ? 0 : hit + 1)
                 .arg(hits.size())
-                .arg(searching ? QStringLiteral(" · hledám…")
-                     : stopped ? QStringLiteral(" · hledání zastaveno")
-                     : limited ? QStringLiteral(" · limit 2000 nálezů, upřesněte dotaz")
+                .arg(searching ? uiText(QStringLiteral(" · hledám…"))
+                     : stopped ? uiText(QStringLiteral(" · hledání zastaveno"))
+                     : limited ? uiText(QStringLiteral(" · limit 2000 nálezů, upřesněte dotaz"))
                                : QString())
                 .arg(!searching && hits.isEmpty()
-                         ? noText ? QStringLiteral(" · dokument nemá textovou vrstvu (bez OCR)")
-                                  : QStringLiteral(" · nenalezeno")
+                         ? noText ? uiText(QStringLiteral(" · dokument nemá textovou vrstvu (bez OCR)"))
+                                  : uiText(QStringLiteral(" · nenalezeno"))
                          : QString()));
     }
     void navigate(int direction) {
@@ -241,7 +243,7 @@ class DocumentTools::State {
         if (operation) {
             QMessageBox::information(
                 window, title,
-                QStringLiteral("Nejprve dokončete nebo zrušte předchozí tisk či tvorbu PDF."));
+                uiText(QStringLiteral("Nejprve dokončete nebo zrušte předchozí tisk či tvorbu PDF.")));
             return;
         }
         operation = new Task(window);
@@ -252,14 +254,14 @@ class DocumentTools::State {
                 delete operation;
                 operation = nullptr;
                 QMessageBox::warning(window, title,
-                                     QStringLiteral("Nelze vytvořit pracovní složku."));
+                                     uiText(QStringLiteral("Nelze vytvořit pracovní složku.")));
                 return;
             }
             job["temporary"] = operation->temporary->path();
             job["output"] = target;
         }
         auto *task = operation.data();
-        task->progress = new QProgressDialog(title, QStringLiteral("Zrušit"), 0, 0, window);
+        task->progress = new QProgressDialog(title, uiText(QStringLiteral("Zrušit")), 0, 0, window);
         task->progress->setWindowModality(Qt::NonModal);
         task->progress->setMinimumDuration(0);
         task->progress->setAutoClose(false);
@@ -270,8 +272,8 @@ class DocumentTools::State {
             if (ok)
                 QMessageBox::information(
                     window, title,
-                    target.isEmpty() ? QStringLiteral("Dokument byl předán tiskárně.")
-                                     : QStringLiteral("PDF bylo vytvořeno:\n%1").arg(target));
+                    target.isEmpty() ? uiText(QStringLiteral("Dokument byl předán tiskárně."))
+                                     : uiText(QStringLiteral("PDF bylo vytvořeno:\n%1")).arg(target));
             else
                 QMessageBox::warning(window, title, error);
         };
@@ -310,7 +312,7 @@ void DocumentTools::find() {
     if (!d->searchDialog) {
         auto *dialog = new QDialog(d->window);
         d->searchDialog = dialog;
-        dialog->setWindowTitle(QStringLiteral("Hledat v dokumentu"));
+        dialog->setWindowTitle(uiText(QStringLiteral("Hledat v dokumentu")));
         dialog->setObjectName("searchDialog");
         auto *form = new QVBoxLayout(dialog);
         auto *row = new QHBoxLayout;
@@ -318,11 +320,11 @@ void DocumentTools::find() {
         d->query->setObjectName("searchQuery");
         d->query->setMaxLength(256);
         d->query->setPlaceholderText(
-            QStringLiteral("Hledaný text (bez rozlišení velikosti písmen)"));
+            uiText(QStringLiteral("Hledaný text (bez rozlišení velikosti písmen)")));
         row->addWidget(d->query);
-        auto *prev = new QPushButton(QStringLiteral("Předchozí"), dialog),
-             *next = new QPushButton(QStringLiteral("Další"), dialog),
-             *stop = new QPushButton(QStringLiteral("Zastavit"), dialog);
+        auto *prev = new QPushButton(uiText(QStringLiteral("Předchozí")), dialog),
+             *next = new QPushButton(uiText(QStringLiteral("Další")), dialog),
+             *stop = new QPushButton(uiText(QStringLiteral("Zastavit")), dialog);
         row->addWidget(prev);
         row->addWidget(next);
         row->addWidget(stop);
@@ -408,7 +410,7 @@ void DocumentTools::print() {
     auto target = printer.outputFileName();
     if (pdf) {
         if (target.isEmpty())
-            target = QFileDialog::getSaveFileName(d->window, QStringLiteral("Tisk do PDF"), {},
+            target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Tisk do PDF")), {},
                                                   QStringLiteral("PDF (*.pdf)"), nullptr,
                                                   QFileDialog::DontConfirmOverwrite);
         if (target.isEmpty())
@@ -416,17 +418,17 @@ void DocumentTools::print() {
         if (!target.endsWith(".pdf", Qt::CaseInsensitive))
             target += ".pdf";
         if (QFileInfo::exists(target)) {
-            QMessageBox::warning(d->window, QStringLiteral("Tisk"),
-                                 QStringLiteral("Soubor již existuje. Zvolte nový název."));
+            QMessageBox::warning(d->window, uiText(QStringLiteral("Tisk")),
+                                 uiText(QStringLiteral("Soubor již existuje. Zvolte nový název.")));
             return;
         }
     }
-    d->run(job, QStringLiteral("Tisk dokumentu…"), pdf ? target : QString());
+    d->run(job, uiText(QStringLiteral("Tisk dokumentu…")), pdf ? target : QString());
 }
 void DocumentTools::imagesPdf() {
     auto files =
-        QFileDialog::getOpenFileNames(d->window, QStringLiteral("Vybrat obrázky pro nové PDF"), {},
-                                      QStringLiteral("Obrázky (*.png *.jpg *.jpeg *.bmp)"));
+        QFileDialog::getOpenFileNames(d->window, uiText(QStringLiteral("Vybrat obrázky pro nové PDF")), {},
+                                      uiText(QStringLiteral("Obrázky (*.png *.jpg *.jpeg *.bmp)")));
     if (files.isEmpty())
         return;
     QCollator order;
@@ -434,10 +436,10 @@ void DocumentTools::imagesPdf() {
     std::sort(files.begin(), files.end(),
               [&](const QString &a, const QString &b) { return order.compare(a, b) < 0; });
     QDialog dialog(d->window);
-    dialog.setWindowTitle(QStringLiteral("PDF z obrázků"));
+    dialog.setWindowTitle(uiText(QStringLiteral("PDF z obrázků")));
     dialog.resize(600, 470);
     QVBoxLayout layout(&dialog);
-    QLabel hint(QStringLiteral("Jeden obrázek = jedna stránka. Pořadí upravte tažením."));
+    QLabel hint(uiText(QStringLiteral("Jeden obrázek = jedna stránka. Pořadí upravte tažením.")));
     layout.addWidget(&hint);
     QListWidget list;
     list.setDragDropMode(QAbstractItemView::InternalMove);
@@ -449,8 +451,8 @@ void DocumentTools::imagesPdf() {
     }
     layout.addWidget(&list);
     QHBoxLayout controls;
-    QPushButton up(QStringLiteral("Nahoru")), down(QStringLiteral("Dolů")),
-        remove(QStringLiteral("Odebrat"));
+    QPushButton up(uiText(QStringLiteral("Nahoru"))), down(uiText(QStringLiteral("Dolů"))),
+        remove(uiText(QStringLiteral("Odebrat")));
     controls.addWidget(&up);
     controls.addWidget(&down);
     controls.addWidget(&remove);
@@ -469,14 +471,14 @@ void DocumentTools::imagesPdf() {
             [&] { delete list.takeItem(list.currentRow()); });
     QFormLayout form;
     QComboBox paper;
-    paper.addItems({QStringLiteral("Podle obrázku (bez okrajů)"),
-                    QStringLiteral("A4 na výšku (okraje 10 mm)"),
-                    QStringLiteral("A4 na šířku (okraje 10 mm)")});
+    paper.addItems({uiText(QStringLiteral("Podle obrázku (bez okrajů)")),
+                    uiText(QStringLiteral("A4 na výšku (okraje 10 mm)")),
+                    uiText(QStringLiteral("A4 na šířku (okraje 10 mm)"))});
     QSpinBox dpi;
     dpi.setRange(72, 600);
     dpi.setValue(150);
-    form.addRow(QStringLiteral("Velikost stránky:"), &paper);
-    form.addRow(QStringLiteral("DPI pro velikost podle obrázku:"), &dpi);
+    form.addRow(uiText(QStringLiteral("Velikost stránky:")), &paper);
+    form.addRow(uiText(QStringLiteral("DPI pro velikost podle obrázku:")), &dpi);
     layout.addLayout(&form);
     connect(&paper, qOverload<int>(&QComboBox::currentIndexChanged), &dpi,
             [&](int i) { dpi.setEnabled(i == 0); });
@@ -486,7 +488,7 @@ void DocumentTools::imagesPdf() {
     connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() != QDialog::Accepted || !list.count())
         return;
-    auto target = QFileDialog::getSaveFileName(d->window, QStringLiteral("Uložit nové PDF"), {},
+    auto target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Uložit nové PDF")), {},
                                                QStringLiteral("PDF (*.pdf)"), nullptr,
                                                QFileDialog::DontConfirmOverwrite);
     if (target.isEmpty())
@@ -494,8 +496,8 @@ void DocumentTools::imagesPdf() {
     if (!target.endsWith(".pdf", Qt::CaseInsensitive))
         target += ".pdf";
     if (QFileInfo::exists(target)) {
-        QMessageBox::warning(d->window, QStringLiteral("PDF z obrázků"),
-                             QStringLiteral("Soubor již existuje. Zvolte nový název."));
+        QMessageBox::warning(d->window, uiText(QStringLiteral("PDF z obrázků")),
+                             uiText(QStringLiteral("Soubor již existuje. Zvolte nový název.")));
         return;
     }
     QJsonArray images;
@@ -505,6 +507,6 @@ void DocumentTools::imagesPdf() {
             {"images", images},
             {"dpi", dpi.value()},
             {"paper", paper.currentIndex()}},
-           QStringLiteral("Vytvářím PDF z obrázků…"), target);
+           uiText(QStringLiteral("Vytvářím PDF z obrázků…")), target);
 }
 } // namespace airlet

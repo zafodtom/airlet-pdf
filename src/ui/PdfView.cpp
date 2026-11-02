@@ -1,6 +1,7 @@
 #include "PdfView.h"
 #include "core/Geometry.h"
 #include "core/Selection.h"
+#include "i18n/Language.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDragEnterEvent>
@@ -37,9 +38,10 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
             return;
         }
         if (!result.first.points.isValid()) {
-            emit openFailed(
-                path,
-                {OpenError::Invalid, QStringLiteral("Neplatné rozměry první stránky."), 0, {}});
+            emit openFailed(path, {OpenError::Invalid,
+                                   uiText(QStringLiteral("Neplatné rozměry první stránky.")),
+                                   0,
+                                   {}});
             return;
         }
         sizes.fill(result.first.points, result.pages);
@@ -67,10 +69,11 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
                 activeText = std::make_shared<TextPage>(std::move(text));
                 updateTextSelection();
                 if (!activeText->copyAllowed)
-                    emit selectionNotice(QStringLiteral("Dokument nepovoluje kopírování textu."));
+                    emit selectionNotice(
+                        uiText(QStringLiteral("Dokument nepovoluje kopírování textu.")));
                 else if (activeText->glyphs.isEmpty())
                     emit selectionNotice(
-                        QStringLiteral("Na stránce není textová vrstva. Použijte Výřez."));
+                        uiText(QStringLiteral("Na stránce není textová vrstva. Použijte Výřez.")));
             });
     connect(&service, &RenderService::areaReady, this,
             [this](quint64 s, quint64 request, QImage image, QString error) {
@@ -98,6 +101,11 @@ void PdfView::closeDocument() {
     password.clear();
     ++session;
     service.close(session);
+    boundaryWheel = 0;
+    boundaryPixels = 0;
+    pageWheelRemainder = 0;
+    pagePixelRemainder = 0;
+    lastPageReady = false;
     sizes.clear();
     rotations.clear();
     pages.clear();
@@ -144,6 +152,44 @@ void PdfView::rebuildLayout() {
     verticalScrollBar()->setSingleStep(std::clamp(viewport()->height() / 20, 32, 64));
     horizontalScrollBar()->setSingleStep(40);
     changingLayout = false;
+}
+void PdfView::setContinueToNextDocument(bool enabled) {
+    continueDocuments = enabled;
+    boundaryWheel = 0;
+    boundaryPixels = 0;
+    if (!enabled)
+        navigationHeld = false;
+}
+void PdfView::suppressNavigationInput() {
+    navigationHeld = true;
+    continuationCooldown.start();
+    lastForwardInput.start();
+    boundaryWheel = 0;
+    boundaryPixels = 0;
+}
+bool PdfView::navigationBlocked() {
+    if (!navigationHeld)
+        return false;
+    const bool blocked = continuationCooldown.elapsed() < 600 || lastForwardInput.elapsed() < 250;
+    lastForwardInput.restart();
+    if (!blocked)
+        navigationHeld = false;
+    return blocked;
+}
+void PdfView::requestNextDocument() {
+    if (!continueDocuments || pages.isEmpty() || firstPending || !lastPageReady)
+        return;
+    suppressNavigationInput();
+    emit nextDocumentRequested();
+}
+void PdfView::nextPage() {
+    if (navigationBlocked())
+        return;
+    if (!pages.isEmpty() && (currentPage() == pages.size() - 1 ||
+                             verticalScrollBar()->value() == verticalScrollBar()->maximum()))
+        requestNextDocument();
+    else
+        goToPage(currentPage() + 1);
 }
 void PdfView::goToPage(int p) {
     if (pages.isEmpty())
@@ -323,6 +369,8 @@ void PdfView::acceptResult(quint64 s, quint64 g, RenderRequest r, PageInfo info,
     }
     if (image.isNull())
         return;
+    if (r.page == pages.size() - 1)
+        lastPageReady = true;
     if (r.preview)
         previews.put(r.key, image);
     else
@@ -360,7 +408,7 @@ void PdfView::paintEvent(QPaintEvent *) {
     if (pages.isEmpty()) {
         painter.setPen(QColor(225, 225, 225));
         painter.drawText(viewport()->rect(), Qt::AlignCenter,
-                         QStringLiteral("Otevřete PDF nebo jej přetáhněte sem"));
+                         uiText(QStringLiteral("Otevřete PDF nebo jej přetáhněte sem")));
         return;
     }
     const QPointF offset(horizontalScrollBar()->value(), verticalScrollBar()->value());
@@ -453,6 +501,30 @@ void PdfView::wheelEvent(QWheelEvent *e) {
             !e->pixelDelta().isNull() ? e->pixelDelta().y() / 120. : e->angleDelta().y() / 120.;
         setZoom(scale * std::pow(1.15, steps), e->position().toPoint());
         e->accept();
+    } else if ((e->pixelDelta().y() < 0 || (e->pixelDelta().isNull() && e->angleDelta().y() < 0)) &&
+               navigationBlocked()) {
+        e->accept();
+    } else if (continueDocuments && !pages.isEmpty() && fitMode != 2 &&
+               !(e->modifiers() & Qt::ShiftModifier) &&
+               verticalScrollBar()->value() == verticalScrollBar()->maximum() &&
+               (e->pixelDelta().y() < 0 || (e->pixelDelta().isNull() && e->angleDelta().y() < 0))) {
+        if (e->phase() != Qt::ScrollMomentum) {
+            if (e->phase() == Qt::ScrollBegin) {
+                boundaryWheel = 0;
+                boundaryPixels = 0;
+            }
+            if (!e->pixelDelta().isNull())
+                boundaryPixels -= e->pixelDelta().y();
+            else
+                boundaryWheel -= e->angleDelta().y();
+            if (boundaryWheel >= 120 || boundaryPixels >= 80)
+                requestNextDocument();
+            if (e->phase() == Qt::ScrollEnd) {
+                boundaryWheel = 0;
+                boundaryPixels = 0;
+            }
+        }
+        e->accept();
     } else if (fitMode == 2 && !pages.isEmpty() && !(e->modifiers() & Qt::ShiftModifier) &&
                (e->angleDelta().y() != 0 || e->pixelDelta().y() != 0)) {
         int steps = 0;
@@ -470,7 +542,12 @@ void PdfView::wheelEvent(QWheelEvent *e) {
             steps = pageWheelRemainder / 120;
             pageWheelRemainder %= 120;
         }
-        if (steps)
+        if (steps < 0 &&
+            (currentPage() == pages.size() - 1 ||
+             verticalScrollBar()->value() == verticalScrollBar()->maximum()) &&
+            e->phase() != Qt::ScrollMomentum)
+            requestNextDocument();
+        else if (steps)
             goToPage(currentPage() - steps);
         e->accept();
     } else if (!e->pixelDelta().isNull()) {

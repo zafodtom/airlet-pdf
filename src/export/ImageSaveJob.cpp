@@ -1,4 +1,5 @@
 #include "ImageSaveJob.h"
+#include "i18n/Language.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QImageWriter>
@@ -40,14 +41,14 @@ bool ImageSaveJob::start(QImage image, QString target, QByteArray format, QStrin
         QString error;
         bool success = false;
         if (image.isNull())
-            error = QStringLiteral("Výřez je prázdný.");
+            error = uiText(QStringLiteral("Výřez je prázdný."));
         else if (format != "PNG" && format != "JPG")
-            error = QStringLiteral("Nepodporovaný obrázkový formát.");
+            error = uiText(QStringLiteral("Nepodporovaný obrázkový formát."));
         else if (QFileInfo(target).suffix().compare("pdf", Qt::CaseInsensitive) == 0 ||
                  sameFile(target, sourcePdf))
-            error = QStringLiteral("Výřez nesmí přepsat PDF dokument.");
+            error = uiText(QStringLiteral("Výřez nesmí přepsat PDF dokument."));
         else if (!overwrite && QFileInfo::exists(target))
-            error = QStringLiteral("Cílový soubor už existuje.");
+            error = uiText(QStringLiteral("Cílový soubor už existuje."));
         else {
             QSaveFile file(target);
             file.setDirectWriteFallback(false);
@@ -64,7 +65,7 @@ bool ImageSaveJob::start(QImage image, QString target, QByteArray format, QStrin
                 else if (!error.isEmpty())
                     file.cancelWriting();
                 else if ((!overwrite && QFileInfo::exists(target)) || sameFile(target, sourcePdf)) {
-                    error = QStringLiteral("Cílový soubor se změnil; nic nebylo přepsáno.");
+                    error = uiText(QStringLiteral("Cílový soubor se změnil; nic nebylo přepsáno."));
                     file.cancelWriting();
                 } else if (!file.commit())
                     error = file.errorString();

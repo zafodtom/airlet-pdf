@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AirletPDF VERSION 0.4.1 LANGUAGES CXX)
+project(AirletPDF VERSION 0.5.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -11,6 +11,8 @@ endif()
 include(cmake/Pdfium.cmake)
 add_library(airlet_core STATIC
   src/core/Geometry.cpp src/core/Geometry.h src/core/PdfEngine.h
+  src/core/FolderNavigator.cpp src/core/FolderNavigator.h
+  src/i18n/Language.cpp src/i18n/Language.h
   src/core/Selection.cpp src/core/Selection.h
   src/export/PageExport.cpp src/export/PageExport.h
   src/export/DocumentJobs.cpp src/export/DocumentJobs.h
@@ -18,6 +20,7 @@ add_library(airlet_core STATIC
   src/pdfium/PdfiumEngine.cpp src/pdfium/PdfiumEngine.h
   src/render/RenderService.cpp src/render/RenderService.h
   src/render/TileCache.h)
+qt_add_resources(airlet_core airlet_translations PREFIX "/i18n" BASE src/i18n FILES src/i18n/en.json)
 target_include_directories(airlet_core PUBLIC src)
 target_link_libraries(airlet_core PUBLIC Qt6::Core Qt6::Gui Qt6::PrintSupport PRIVATE pdfium)
 add_library(airlet_ui STATIC src/ui/PdfView.cpp src/ui/PdfView.h src/ui/MainWindow.cpp src/ui/MainWindow.h src/ui/DocumentTools.cpp src/ui/DocumentTools.h)

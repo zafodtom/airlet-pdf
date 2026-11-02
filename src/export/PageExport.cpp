@@ -2,6 +2,7 @@
 #include "DocumentJobs.h"
 #include "core/Geometry.h"
 #include "core/PdfEngine.h"
+#include "i18n/Language.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -32,7 +33,8 @@ QVector<int> parsePageRange(QString range, int count, QString *error) {
         if (!match.captured(2).isEmpty())
             last = match.captured(2).toInt(&ok);
         if (!match.hasMatch() || !ok || first < 1 || last < first || last > count) {
-            *error = QStringLiteral("Neplatný rozsah stran. Použijte například 1–5, 8, 12.");
+            *error =
+                uiText(QStringLiteral("Neplatný rozsah stran. Použijte například 1–5, 8, 12."));
             return {};
         }
         for (int i = first; i <= last; ++i)
@@ -53,6 +55,7 @@ int runExportWorker(int argc, char **argv) {
     QFile input;
     input.open(stdin, QIODevice::ReadOnly);
     const auto job = QJsonDocument::fromJson(input.readLine()).object();
+    setLanguage(job["language"].toString());
     if (job.contains("mode"))
         return runDocumentJob(job);
     auto fail = [](QString message) {
@@ -71,10 +74,10 @@ int runExportWorker(int argc, char **argv) {
     const auto format = job["format"].toString();
     if (dpi < 72 || dpi > 600 || quality < 1 || quality > 100 ||
         (format != "PNG" && format != "JPG"))
-        return fail(QStringLiteral("Neplatné parametry exportu."));
+        return fail(uiText(QStringLiteral("Neplatné parametry exportu.")));
     QDir output(job["output"].toString()), temporary(job["temporary"].toString());
     if (!output.exists() || !temporary.exists())
-        return fail(QStringLiteral("Výstupní složka neexistuje."));
+        return fail(uiText(QStringLiteral("Výstupní složka neexistuje.")));
     const auto base = QFileInfo(job["source"].toString()).completeBaseName();
     const int digits = std::max(3, QString::number(opened.pages).size() > 3
                                        ? int(QString::number(opened.pages).size())
@@ -85,10 +88,9 @@ int runExportWorker(int argc, char **argv) {
     };
     for (int p : pages)
         if (QFileInfo::exists(name(p)))
-            return fail(
-                QStringLiteral(
-                    "Soubor už existuje: %1. Vyberte jinou složku nebo přesuňte původní export.")
-                    .arg(QFileInfo(name(p)).fileName()));
+            return fail(uiText(QStringLiteral("Soubor už existuje: %1. Vyberte jinou složku nebo "
+                                              "přesuňte původní export."))
+                            .arg(QFileInfo(name(p)).fileName()));
     const auto rotations = job["rotations"].toArray();
     int done = 0;
     for (int p : pages) {
@@ -97,14 +99,13 @@ int runExportWorker(int argc, char **argv) {
         const double w = std::ceil(size.width() * dpi / 72.),
                      h = std::ceil(size.height() * dpi / 72.);
         if (w <= 0 || h <= 0 || w > 32768 || h > 32768 || w * h > 64. * 1024 * 1024)
-            return fail(
-                QStringLiteral(
-                    "Stránka %1 je při tomto DPI příliš velká. Snižte DPI (limit 64 megapixelů).")
-                    .arg(p + 1));
+            return fail(uiText(QStringLiteral("Stránka %1 je při tomto DPI příliš velká. Snižte "
+                                              "DPI (limit 64 megapixelů)."))
+                            .arg(p + 1));
         const QSize full{int(w), int(h)};
         QImage image(full, QImage::Format_ARGB32);
         if (image.isNull())
-            return fail(QStringLiteral("Nedostatek paměti."));
+            return fail(uiText(QStringLiteral("Nedostatek paměti.")));
         image.fill(Qt::white);
         image.setDotsPerMeterX(qRound(dpi / .0254));
         image.setDotsPerMeterY(qRound(dpi / .0254));
@@ -114,7 +115,7 @@ int runExportWorker(int argc, char **argv) {
                 auto bitmap =
                     engine->render({p, rotation, full, tile, false, {}}, [] { return false; });
                 if (bitmap.isNull())
-                    return fail(QStringLiteral("Stránku %1 nelze vykreslit.").arg(p + 1));
+                    return fail(uiText(QStringLiteral("Stránku %1 nelze vykreslit.")).arg(p + 1));
                 QPainter painter(&image);
                 painter.drawImage(tile.topLeft(), bitmap);
             }
@@ -130,8 +131,8 @@ int runExportWorker(int argc, char **argv) {
         // Use the owning QTemporaryFile: close() can retain its native handle.
         // Its rename closes that handle and refuses existing targets.
         if (!file.rename(name(p)))
-            return fail(
-                QStringLiteral("Výstup nelze dokončit: %1 (%2)").arg(name(p), file.errorString()));
+            return fail(uiText(QStringLiteral("Výstup nelze dokončit: %1 (%2)"))
+                            .arg(name(p), file.errorString()));
         file.setAutoRemove(false);
         ++done;
         send({{"completed", done}, {"total", pages.size()}, {"file", name(p)}});

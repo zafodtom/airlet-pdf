@@ -21,6 +21,9 @@ class PdfView final : public QAbstractScrollArea {
         return rotations;
     }
     void goToPage(int page);
+    void nextPage();
+    void setContinueToNextDocument(bool enabled);
+    void suppressNavigationInput();
     int currentPage() const;
     int pageCount() const {
         return sizes.size();
@@ -61,6 +64,7 @@ class PdfView final : public QAbstractScrollArea {
     void zoomChanged(double scale);
     void firstImage(qint64 openMs);
     void fileDropped(QString path);
+    void nextDocumentRequested();
     void selectionChanged();
     void selectionNotice(QString message);
     void selectionImageReady(quint64 request, QImage image, QString error);
@@ -96,6 +100,12 @@ class PdfView final : public QAbstractScrollArea {
     QElapsedTimer openingTimer;
     bool firstPending = false, changingLayout = false, dragging = false, metadataPending = false;
     QPoint dragPosition;
+    bool continueDocuments = false, navigationHeld = false, lastPageReady = false;
+    QElapsedTimer continuationCooldown, lastForwardInput;
+    int boundaryWheel = 0;
+    double boundaryPixels = 0;
+    bool navigationBlocked();
+    void requestNextDocument();
     int pageWheelRemainder = 0;
     double pagePixelRemainder = 0;
     SelectionMode mode = SelectionMode::Text;

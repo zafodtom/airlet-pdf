@@ -1,4 +1,5 @@
 #include "PdfiumEngine.h"
+#include "i18n/Language.h"
 #include <QCache>
 #include <QFile>
 #include <QTransform>
@@ -78,11 +79,11 @@ class PdfiumEngine final : public PdfEngine {
         close();
         file.setFileName(path);
         if (!file.open(QIODevice::ReadOnly) || file.size() > 0xffffffffLL)
-            return {
-                OpenError::Io,
-                QStringLiteral("Soubor nelze číst nebo přesahuje limit 4 GiB PDFium FILEACCESS."),
-                0,
-                {}};
+            return {OpenError::Io,
+                    uiText(QStringLiteral(
+                        "Soubor nelze číst nebo přesahuje limit 4 GiB PDFium FILEACCESS.")),
+                    0,
+                    {}};
         access.m_FileLen = static_cast<unsigned long>(file.size());
         access.m_Param = &file;
         access.m_GetBlock = &read;
@@ -92,15 +93,16 @@ class PdfiumEngine final : public PdfEngine {
             const auto e = FPDF_GetLastError();
             file.close();
             return {e == FPDF_ERR_PASSWORD ? OpenError::Password : OpenError::Invalid,
-                    e == FPDF_ERR_PASSWORD ? QStringLiteral("PDF vyžaduje správné heslo.")
-                                           : QStringLiteral("PDF nelze otevřít (chyba %1).").arg(e),
+                    e == FPDF_ERR_PASSWORD
+                        ? uiText(QStringLiteral("PDF vyžaduje správné heslo."))
+                        : uiText(QStringLiteral("PDF nelze otevřít (chyba %1).")).arg(e),
                     0,
                     {}};
         }
         const int n = FPDF_GetPageCount(doc);
         if (n <= 0) {
             close();
-            return {OpenError::Invalid, QStringLiteral("PDF nemá žádné stránky."), 0, {}};
+            return {OpenError::Invalid, uiText(QStringLiteral("PDF nemá žádné stránky.")), 0, {}};
         }
         return {OpenError::None, {}, n, pageInfo(0)};
     }

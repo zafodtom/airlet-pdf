@@ -18,3 +18,6 @@
 - Testy spustit `ctest --test-dir build --output-on-failure -C Release`.
 - Testovat pouze syntetické dokumenty. Výkon Windows označovat jako změřený pouze při skutečném Windows běhu.
 - Actions pouze `workflow_dispatch`, jedna Windows konfigurace, artefakty 3 dny. Jiné repozitáře neměnit.
+
+- Od 0.5.0: přechod na další PDF ze stejné složky je explicitní přepínač, při každém startu vypnutý. Scan složky pouze na vyžádání mimo GUI; bez watcheru. Klávesa End ani dosažení poslední stránky samy nepřepínají dokument.
+- Jazyk cs/en se inicializuje před spuštěním workerů; změna v menu platí po restartu. Překládat i vlastní chybová hlášení workeru; technické klíče JSON a názvy souborových formátů nepřekládat.

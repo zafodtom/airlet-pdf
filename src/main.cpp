@@ -1,3 +1,4 @@
+#include "i18n/Language.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
 #include <QApplication>
@@ -7,6 +8,7 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSettings>
 #include <QTimer>
 int main(int argc, char **argv) {
     QElapsedTimer start;
@@ -16,6 +18,7 @@ int main(int argc, char **argv) {
     QCoreApplication::setOrganizationName("Airlet");
     QCoreApplication::setApplicationName("Airlet PDF");
     QCoreApplication::setApplicationVersion(AIRLET_VERSION);
+    airlet::setLanguage(QSettings().value("language", "cs").toString());
     airlet::MainWindow window;
     window.show();
     const auto args = app.arguments();

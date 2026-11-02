@@ -2,6 +2,7 @@
 #include "PageExport.h"
 #include "core/Geometry.h"
 #include "core/PdfEngine.h"
+#include "i18n/Language.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
@@ -36,9 +37,9 @@ static int imagesPdf(const QJsonObject &job) {
     const int dpi = job["dpi"].toInt(150), paper = job["paper"].toInt();
     if (files.isEmpty() || files.size() > 10000 || dpi < 72 || dpi > 600 || paper < 0 ||
         paper > 2 || target.isEmpty())
-        return fail(QStringLiteral("Neplatné parametry obrázků."));
+        return fail(uiText(QStringLiteral("Neplatné parametry obrázků.")));
     if (QFileInfo::exists(target))
-        return fail(QStringLiteral("Výstup již existuje. Zvolte nový název."));
+        return fail(uiText(QStringLiteral("Výstup již existuje. Zvolte nový název.")));
     QTemporaryFile file(QDir(job["temporary"].toString()).filePath("images-XXXXXX.part"));
     if (!file.open())
         return fail(file.errorString());
@@ -56,11 +57,12 @@ static int imagesPdf(const QJsonObject &job) {
             if (!size.isValid() || size.width() > 32768 || size.height() > 32768 ||
                 qint64(size.width()) * size.height() > 64LL * 1024 * 1024)
                 return fail(
-                    QStringLiteral("Obrázek %1 má neplatné rozměry nebo přesahuje 64 megapixelů.")
+                    uiText(QStringLiteral(
+                               "Obrázek %1 má neplatné rozměry nebo přesahuje 64 megapixelů."))
                         .arg(i + 1));
             auto image = reader.read();
             if (image.isNull())
-                return fail(QStringLiteral("Obrázek %1 nelze načíst: %2")
+                return fail(uiText(QStringLiteral("Obrázek %1 nelze načíst: %2"))
                                 .arg(i + 1)
                                 .arg(reader.errorString()));
             const QPageSize pageSize =
@@ -71,12 +73,12 @@ static int imagesPdf(const QJsonObject &job) {
             if (!writer.setPageLayout(QPageLayout(pageSize, orientation,
                                                   QMarginsF(margin, margin, margin, margin),
                                                   QPageLayout::Millimeter)))
-                return fail(QStringLiteral("Nelze nastavit velikost stránky."));
+                return fail(uiText(QStringLiteral("Nelze nastavit velikost stránky.")));
             if (i == 0) {
                 if (!painter.begin(&writer))
-                    return fail(QStringLiteral("Nelze vytvořit PDF."));
+                    return fail(uiText(QStringLiteral("Nelze vytvořit PDF.")));
             } else if (!writer.newPage())
-                return fail(QStringLiteral("Nelze přidat stránku PDF."));
+                return fail(uiText(QStringLiteral("Nelze přidat stránku PDF.")));
             const QRectF area(0, 0, writer.width(), writer.height());
             painter.fillRect(area, Qt::white);
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
@@ -84,7 +86,7 @@ static int imagesPdf(const QJsonObject &job) {
             report({{"completed", i + 1}, {"total", files.size()}});
         }
         if (!painter.end())
-            return fail(QStringLiteral("PDF se nepodařilo dokončit."));
+            return fail(uiText(QStringLiteral("PDF se nepodařilo dokončit.")));
     }
     if (!file.flush())
         return fail(file.errorString());
@@ -97,12 +99,12 @@ static int imagesPdf(const QJsonObject &job) {
 static int searchPdf(PdfEngine &engine, int count, const QJsonObject &job) {
     const auto query = job["query"].toString().simplified();
     if (query.isEmpty() || query.size() > 256)
-        return fail(QStringLiteral("Zadejte nejvýše 256 znaků."));
+        return fail(uiText(QStringLiteral("Zadejte nejvýše 256 znaků.")));
     int hits = 0, textPages = 0;
     for (int p = 0; p < count; ++p) {
         const auto page = engine.text(p);
         if (!page.copyAllowed)
-            return fail(QStringLiteral("Dokument nepovoluje získání textu."));
+            return fail(uiText(QStringLiteral("Dokument nepovoluje získání textu.")));
         QString text;
         QVector<int> glyphs;
         for (int g = 0; g < page.glyphs.size(); ++g) {
@@ -147,7 +149,7 @@ static int searchPdf(PdfEngine &engine, int count, const QJsonObject &job) {
 }
 static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
     if (engine.printDpi() == 0)
-        return fail(QStringLiteral("Dokument nepovoluje tisk."));
+        return fail(uiText(QStringLiteral("Dokument nepovoluje tisk.")));
     QString error;
     auto pages = parsePageRange(job["range"].toString(), count, &error);
     if (!error.isEmpty())
@@ -161,7 +163,7 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
     QTemporaryFile file(QDir(job["temporary"].toString()).filePath("print-XXXXXX.pdf"));
     if (pdf) {
         if (target.isEmpty() || QFileInfo::exists(target))
-            return fail(QStringLiteral("Výstup již existuje nebo není zadán."));
+            return fail(uiText(QStringLiteral("Výstup již existuje nebo není zadán.")));
         if (!file.open())
             return fail(file.errorString());
         file.setAutoRemove(false);
@@ -173,11 +175,11 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
     } else {
         printer.setPrinterName(job["printer"].toString());
         if (!printer.isValid())
-            return fail(QStringLiteral("Tiskárna není dostupná."));
+            return fail(uiText(QStringLiteral("Tiskárna není dostupná.")));
     }
     const auto mm = job["paperMm"].toArray();
     if (mm.size() != 2)
-        return fail(QStringLiteral("Neplatný formát papíru."));
+        return fail(uiText(QStringLiteral("Neplatný formát papíru.")));
     printer.setPageSize(
         QPageSize(QSizeF(mm[0].toDouble(), mm[1].toDouble()), QPageSize::Millimeter));
     printer.setPageOrientation(QPageLayout::Portrait); // dimensions already include orientation
@@ -206,12 +208,12 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
                 sequence.append(p);
     QPainter painter;
     if (!painter.begin(&printer))
-        return fail(QStringLiteral("Tisk se nepodařilo zahájit."));
+        return fail(uiText(QStringLiteral("Tisk se nepodařilo zahájit.")));
     const auto rotations = job["rotations"].toArray();
     for (int i = 0; i < sequence.size(); ++i) {
         if (i && !printer.newPage()) {
             printer.abort();
-            return fail(QStringLiteral("Tisk stránky selhal."));
+            return fail(uiText(QStringLiteral("Tisk stránky selhal.")));
         }
         const int p = sequence[i], rotation = (p < rotations.size() ? rotations[p].toInt() : 0);
         const auto size = rotatedSize(engine.pageInfo(p).points, rotation);
@@ -220,7 +222,7 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
         if (full.width() <= 0 || full.height() <= 0 || full.width() > 32768 ||
             full.height() > 32768) {
             printer.abort();
-            return fail(QStringLiteral("Stránka je pro tisk příliš velká."));
+            return fail(uiText(QStringLiteral("Stránka je pro tisk příliš velká.")));
         }
         const auto area = printer.pageRect(QPrinter::DevicePixel);
         const auto dest = fitRect(size, QRectF(0, 0, area.width(), area.height()));
@@ -231,7 +233,7 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
                     engine.render({p, rotation, full, tile, false, {}}, [] { return false; });
                 if (image.isNull()) {
                     printer.abort();
-                    return fail(QStringLiteral("Stránku nelze vykreslit pro tisk."));
+                    return fail(uiText(QStringLiteral("Stránku nelze vykreslit pro tisk.")));
                 }
                 painter.drawImage(QRectF(dest.x() + x * dest.width() / full.width(),
                                          dest.y() + y * dest.height() / full.height(),
@@ -242,14 +244,14 @@ static int printPdf(PdfEngine &engine, int count, const QJsonObject &job) {
         report({{"completed", i + 1}, {"total", sequence.size()}});
     }
     if (!painter.end() || printer.printerState() == QPrinter::Error)
-        return fail(QStringLiteral("Tisk nebyl dokončen."));
+        return fail(uiText(QStringLiteral("Tisk nebyl dokončen.")));
     const auto printedPath = printer.outputFileName();
     printerOwner.reset(); // close the native output handle before finalizing on Windows
     if (pdf) {
         // QPrinter has closed its output. No copy/delete fallback or overwrite.
         // Rename the closed native file in the same destination filesystem.
         if (!QFile::rename(printedPath, target))
-            return fail(QStringLiteral("PDF nelze dokončit."));
+            return fail(uiText(QStringLiteral("PDF nelze dokončit.")));
     }
     report({{"success", true}});
     return 0;
@@ -266,6 +268,6 @@ int runDocumentJob(const QJsonObject &job) {
         return searchPdf(*engine, opened.pages, job);
     if (mode == "print")
         return printPdf(*engine, opened.pages, job);
-    return fail(QStringLiteral("Neznámá operace."));
+    return fail(uiText(QStringLiteral("Neznámá operace.")));
 }
 } // namespace airlet

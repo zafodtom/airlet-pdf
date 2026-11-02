@@ -7,7 +7,7 @@
 [Setup]
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
-AppVersion=0.4.1
+AppVersion=0.5.0
 AppPublisher=Airlet PDF
 DefaultDirName={localappdata}\Programs\Airlet PDF
 DefaultGroupName=Airlet PDF
@@ -16,7 +16,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=AirletPDF-Setup-0.4.1-x64
+OutputBaseFilename=AirletPDF-Setup-0.5.0-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -27,8 +27,20 @@ DisableProgramGroupPage=yes
 InfoAfterFile=..\licenses\THIRD-PARTY.md
 [Languages]
 Name: "czech"; MessagesFile: "compiler:Languages\Czech.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+[CustomMessages]
+czech.DesktopIcon=Vytvořit zástupce na ploše
+english.DesktopIcon=Create a desktop shortcut
+czech.LaunchApp=Spustit Airlet PDF
+english.LaunchApp=Launch Airlet PDF
+czech.DefaultPDF=Zvolit Airlet PDF jako výchozí pro PDF v nastavení Windows
+english.DefaultPDF=Choose Airlet PDF as the default PDF app in Windows Settings
+czech.PDFDocument=PDF dokument
+english.PDFDocument=PDF document
+czech.AppDescription=Rychlý lokální prohlížeč PDF
+english.AppDescription=A fast local PDF viewer
 [Tasks]
-Name: "desktopicon"; Description: "Vytvořit zástupce na ploše"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:DesktopIcon}"; Flags: unchecked
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [InstallDelete]
@@ -45,18 +57,18 @@ Name: "{autodesktop}\Airlet PDF"; Filename: "{app}\AirletPDF.exe"; Tasks: deskto
 Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Airlet PDF"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\SupportedTypes"; ValueType: string; ValueName: ".pdf"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\Applications\AirletPDF.exe\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""
-Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document"; ValueType: string; ValueData: "PDF dokument"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document"; ValueType: string; ValueData: "{cm:PDFDocument}"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\DefaultIcon"; ValueType: string; ValueData: "{app}\AirletPDF.exe,0"
 Root: HKCU; Subkey: "Software\Classes\AirletPDF.Document\shell\open\command"; ValueType: string; ValueData: """{app}\AirletPDF.exe"" ""%1"""
 Root: HKCU; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: string; ValueName: "AirletPDF.Document"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Airlet PDF"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Rychlý lokální prohlížeč PDF"
+Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "{cm:AppDescription}"
 Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: "{app}\AirletPDF.exe,0"
 Root: HKCU; Subkey: "Software\Airlet\Airlet PDF\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pdf"; ValueData: "AirletPDF.Document"
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Airlet PDF"; ValueData: "Software\Airlet\Airlet PDF\Capabilities"; Flags: uninsdeletevalue
 [Run]
-Filename: "{app}\AirletPDF.exe"; Description: "Spustit Airlet PDF"; Flags: nowait postinstall skipifsilent
-Filename: "{code:DefaultAppsUri}"; Description: "Zvolit Airlet PDF jako výchozí pro PDF v nastavení Windows"; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\AirletPDF.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
+Filename: "{code:DefaultAppsUri}"; Description: "{cm:DefaultPDF}"; Flags: postinstall shellexec skipifsilent
 
 [Code]
 function DefaultAppsUri(Param: String): String;

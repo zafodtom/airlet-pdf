@@ -1,4 +1,5 @@
 #pragma once
+#include "core/FolderNavigator.h"
 #include "export/ImageSaveJob.h"
 #include <QMainWindow>
 #include <QPointer>
@@ -28,6 +29,10 @@ class MainWindow final : public QMainWindow {
   private:
     PdfView *view;
     DocumentTools *tools;
+    FolderNavigator folderNavigator{this};
+    QAction *continueAction = nullptr;
+    quint64 pendingFolderRequest = 0;
+    bool automaticOpening = false;
     QSpinBox *page;
     QLabel *count;
     QString lastFolder;

@@ -2,6 +2,7 @@
 #include "DocumentTools.h"
 #include "PdfView.h"
 #include "export/PageExport.h"
+#include "i18n/Language.h"
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
@@ -43,9 +44,54 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     QSettings settings;
     restoreGeometry(settings.value("windowGeometry").toByteArray());
     lastFolder = settings.value("lastFolder").toString();
-    auto *bar = addToolBar(QStringLiteral("Dokument"));
+    auto *languageMenu = new QMenu(QStringLiteral("Jazyk / Language"), this);
+    auto *languages = new QActionGroup(this);
+    for (const auto &entry : {qMakePair(uiText(QStringLiteral("Čeština")), QStringLiteral("cs")),
+                              qMakePair(QStringLiteral("English"), QStringLiteral("en"))}) {
+        auto *a = languageMenu->addAction(entry.first);
+        a->setCheckable(true);
+        a->setChecked(settings.value("language", "cs").toString() == entry.second);
+        languages->addAction(a);
+        connect(a, &QAction::triggered, this, [this, code = entry.second] {
+            QSettings().setValue("language", code);
+            QMessageBox::information(
+                this, QStringLiteral("Jazyk / Language"),
+                uiText(QStringLiteral("Změna jazyka se projeví po novém spuštění aplikace.")));
+        });
+    }
+    auto *bar = addToolBar(uiText(QStringLiteral("Dokument")));
     bar->setMovable(false);
     bar->setIconSize(QSize(18, 18));
+    continueAction = bar->addAction(uiText(QStringLiteral("Pokračovat dalším PDF")));
+    continueAction->setObjectName("continueDocuments");
+    continueAction->setCheckable(true);
+    continueAction->setChecked(false);
+    continueAction->setToolTip(
+        uiText(QStringLiteral("Za koncem dokumentu otevřít další PDF ze stejné složky podle názvu. "
+                              "Po spuštění je vždy vypnuto.")));
+    connect(continueAction, &QAction::toggled, this, [this](bool enabled) {
+        pendingFolderRequest = 0;
+        view->setContinueToNextDocument(enabled);
+    });
+    connect(view, &PdfView::nextDocumentRequested, this, [this] {
+        if (continueAction->isChecked() && !openedPath.isEmpty() && !pendingFolderRequest)
+            pendingFolderRequest = folderNavigator.request(openedPath);
+    });
+    connect(
+        &folderNavigator, &FolderNavigator::resolved, this,
+        [this](quint64 id, QString source, QString next) {
+            if (id != pendingFolderRequest || !continueAction->isChecked() || openedPath != source)
+                return;
+            pendingFolderRequest = 0;
+            if (next.isEmpty()) {
+                statusBar()->showMessage(uiText(QStringLiteral("Ve složce už není další PDF.")));
+                return;
+            }
+            openFile(next);
+            automaticOpening = true;
+            view->suppressNavigationInput();
+        });
+    bar->addSeparator();
     auto action = [&](const QString &text, const QKeySequence &shortcut, auto fn) {
         auto *a = bar->addAction(text);
         a->setShortcut(shortcut);
@@ -59,31 +105,33 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         connect(a, &QAction::triggered, this, fn);
         return a;
     };
-    auto *openAction =
-        menuAction(QStringLiteral("Otevřít…"), QKeySequence::Open, [this] { chooseFile(); });
-    auto *close = menuAction(QStringLiteral("Zavřít"), QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
-        view->closeDocument();
-        openedPath.clear();
-        setWindowTitle("Airlet PDF");
-    });
+    auto *openAction = menuAction(uiText(QStringLiteral("Otevřít…")), QKeySequence::Open,
+                                  [this] { chooseFile(); });
+    auto *close =
+        menuAction(uiText(QStringLiteral("Zavřít")), QKeySequence(Qt::CTRL | Qt::Key_W), [this] {
+            view->closeDocument();
+            openedPath.clear();
+            setWindowTitle("Airlet PDF");
+        });
     auto *exportAction = menuAction(QStringLiteral("Export…"), QKeySequence(Qt::CTRL | Qt::Key_E),
                                     [this] { exportPages(); });
-    auto *findAction = new QAction(QStringLiteral("Hledat…"), this);
+    auto *findAction = new QAction(uiText(QStringLiteral("Hledat…")), this);
     findAction->setShortcut(QKeySequence::Find);
     addAction(findAction);
     connect(findAction, &QAction::triggered, tools, &DocumentTools::find);
-    auto *printAction = new QAction(QStringLiteral("Tisk…"), this);
+    auto *printAction = new QAction(uiText(QStringLiteral("Tisk…")), this);
     printAction->setShortcut(QKeySequence::Print);
     addAction(printAction);
     connect(printAction, &QAction::triggered, tools, &DocumentTools::print);
-    auto *fileMenu = menuBar()->addMenu(QStringLiteral("Soubor"));
+    auto *fileMenu = menuBar()->addMenu(uiText(QStringLiteral("Soubor")));
     fileMenu->addAction(openAction);
-    auto *imagesAction = fileMenu->addAction(QStringLiteral("PDF z obrázků…"));
+    auto *imagesAction = fileMenu->addAction(uiText(QStringLiteral("PDF z obrázků…")));
     connect(imagesAction, &QAction::triggered, tools, &DocumentTools::imagesPdf);
     fileMenu->addAction(exportAction);
     fileMenu->addAction(printAction);
     fileMenu->addAction(close);
-    menuBar()->addMenu(QStringLiteral("Úpravy"))->addAction(findAction);
+    menuBar()->addMenu(uiText(QStringLiteral("Úpravy")))->addAction(findAction);
+    menuBar()->addMenu(languageMenu);
     QList<QAction *> documentActions{close, exportAction, findAction, printAction};
     documentActions << action(QStringLiteral("|◀"), QKeySequence(Qt::CTRL | Qt::Key_Home),
                               [this] { view->goToPage(0); });
@@ -92,7 +140,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     page = new QSpinBox(bar);
     page->setRange(1, 1);
     page->setKeyboardTracking(false);
-    page->setToolTip(QStringLiteral("Přejít na stránku"));
+    page->setToolTip(uiText(QStringLiteral("Přejít na stránku")));
     bar->addWidget(page);
     count = new QLabel(QStringLiteral(" / 0  "), bar);
     bar->addWidget(count);
@@ -101,7 +149,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         view->setFocus();
     });
     documentActions << action(QStringLiteral("▶"), QKeySequence(Qt::Key_PageDown),
-                              [this] { view->goToPage(view->currentPage() + 1); });
+                              [this] { view->nextPage(); });
     documentActions << action(QStringLiteral("▶|"), QKeySequence(Qt::CTRL | Qt::Key_End),
                               [this] { view->goToPage(view->pageCount() - 1); });
     bar->addSeparator();
@@ -111,24 +159,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                               [this] { view->setZoom(view->zoom() * 1.15); });
     documentActions << action(QStringLiteral("100 %"), QKeySequence(Qt::CTRL | Qt::Key_0),
                               [this] { view->setZoom(1.); });
-    documentActions << action(QStringLiteral("Šířka"), QKeySequence(Qt::CTRL | Qt::Key_1),
+    documentActions << action(uiText(QStringLiteral("Šířka")), QKeySequence(Qt::CTRL | Qt::Key_1),
                               [this] { view->fitWidth(); });
-    documentActions << action(QStringLiteral("Stránka"), QKeySequence(Qt::CTRL | Qt::Key_2),
+    documentActions << action(uiText(QStringLiteral("Stránka")), QKeySequence(Qt::CTRL | Qt::Key_2),
                               [this] { view->fitPage(); });
     bar->addSeparator();
     auto *rotateLeft = action(QStringLiteral("↶"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R),
                               [this] { view->rotate(-1); });
     auto *rotateRight = action(QStringLiteral("↷"), QKeySequence(Qt::CTRL | Qt::Key_R),
                                [this] { view->rotate(1); });
-    rotateLeft->setToolTip(QStringLiteral("Otočit doleva (pouze zobrazení)"));
-    rotateRight->setToolTip(QStringLiteral("Otočit doprava (pouze zobrazení)"));
+    rotateLeft->setToolTip(uiText(QStringLiteral("Otočit doleva (pouze zobrazení)")));
+    rotateRight->setToolTip(uiText(QStringLiteral("Otočit doprava (pouze zobrazení)")));
     documentActions << rotateLeft << rotateRight;
     bar->addSeparator();
     auto *modeGroup = new QActionGroup(this);
     modeGroup->setExclusive(true);
     auto *textMode = action(QStringLiteral("Text"), QKeySequence(Qt::ALT | Qt::Key_T),
                             [this] { view->setSelectionMode(PdfView::SelectionMode::Text); });
-    auto *areaMode = action(QStringLiteral("Výřez"), QKeySequence(Qt::ALT | Qt::Key_X),
+    auto *areaMode = action(uiText(QStringLiteral("Výřez")), QKeySequence(Qt::ALT | Qt::Key_X),
                             [this] { view->setSelectionMode(PdfView::SelectionMode::Area); });
     for (auto *a : {textMode, areaMode}) {
         a->setCheckable(true);
@@ -137,14 +185,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     }
     textMode->setChecked(true);
     view->setSelectionMode(PdfView::SelectionMode::Text);
-    textMode->setToolTip(QStringLiteral("Vybrat text tažením, Ctrl+C kopíruje (jedna stránka)"));
-    areaMode->setToolTip(QStringLiteral("Vybrat obdélníkový výřez, Ctrl+C kopíruje obrázek"));
-    copyAction = new QAction(QStringLiteral("Kopírovat výběr"), view);
+    textMode->setToolTip(
+        uiText(QStringLiteral("Vybrat text tažením, Ctrl+C kopíruje (jedna stránka)")));
+    areaMode->setToolTip(
+        uiText(QStringLiteral("Vybrat obdélníkový výřez, Ctrl+C kopíruje obrázek")));
+    copyAction = new QAction(uiText(QStringLiteral("Kopírovat výběr")), view);
     copyAction->setShortcut(QKeySequence::Copy);
     copyAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     view->addAction(copyAction);
     connect(copyAction, &QAction::triggered, this, &MainWindow::copySelection);
-    saveAreaAction = new QAction(QStringLiteral("Uložit výřez…"), this);
+    saveAreaAction = new QAction(uiText(QStringLiteral("Uložit výřez…")), this);
     connect(saveAreaAction, &QAction::triggered, this, &MainWindow::saveArea);
     copyAction->setEnabled(false);
     saveAreaAction->setEnabled(false);
@@ -164,25 +214,27 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 return;
             if (!error.isEmpty() || image.isNull()) {
                 endAreaOperation();
-                QMessageBox::warning(this, QStringLiteral("Výřez"),
-                                     error.isEmpty() ? QStringLiteral("Výřez je prázdný.") : error);
+                QMessageBox::warning(this, uiText(QStringLiteral("Výřez")),
+                                     error.isEmpty() ? uiText(QStringLiteral("Výřez je prázdný."))
+                                                     : error);
                 return;
             }
             if (pendingSavePath.isEmpty()) {
                 QApplication::clipboard()->setImage(image);
                 endAreaOperation();
-                statusBar()->showMessage(QStringLiteral("Výřez %1 × %2 px je ve schránce.")
+                statusBar()->showMessage(uiText(QStringLiteral("Výřez %1 × %2 px je ve schránce."))
                                              .arg(image.width())
                                              .arg(image.height()));
             } else {
                 if (cropProgress) {
-                    cropProgress->setLabelText(QStringLiteral("Ukládám výřez…"));
+                    cropProgress->setLabelText(uiText(QStringLiteral("Ukládám výřez…")));
                     cropProgress->setRange(0, 0);
                 }
                 if (!imageSaver.start(image, pendingSavePath, pendingSaveFormat, pendingSaveSource,
                                       pendingOverwrite, id)) {
                     endAreaOperation();
-                    statusBar()->showMessage(QStringLiteral("Předchozí ukládání ještě končí."));
+                    statusBar()->showMessage(
+                        uiText(QStringLiteral("Předchozí ukládání ještě končí.")));
                 }
             }
         });
@@ -193,39 +245,42 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 const auto target = pendingSavePath;
                 endAreaOperation();
                 if (success)
-                    statusBar()->showMessage(
-                        QStringLiteral("Výřez byl uložen: %1").arg(QFileInfo(target).fileName()));
+                    statusBar()->showMessage(uiText(QStringLiteral("Výřez byl uložen: %1"))
+                                                 .arg(QFileInfo(target).fileName()));
                 else if (cancelled)
-                    statusBar()->showMessage(QStringLiteral("Ukládání výřezu bylo zrušeno."));
+                    statusBar()->showMessage(
+                        uiText(QStringLiteral("Ukládání výřezu bylo zrušeno.")));
                 else
-                    QMessageBox::warning(this, QStringLiteral("Uložení výřezu"), error);
+                    QMessageBox::warning(this, uiText(QStringLiteral("Uložení výřezu")), error);
             });
-    auto *aboutAction = menuAction(QStringLiteral("O aplikaci"), {}, [this] {
+    auto *aboutAction = menuAction(uiText(QStringLiteral("O aplikaci")), {}, [this] {
         QMessageBox box(this);
         box.setWindowTitle(QStringLiteral("Airlet PDF"));
         box.setTextFormat(Qt::RichText);
         box.setText(
-            QStringLiteral(
-                "<b>Airlet PDF %1</b><p>Rychlý lokální PDF prohlížeč.</p>"
-                "<p>Qt %2, dynamicky připojené knihovny pod LGPLv3.<br>PDFium "
-                "chromium/8125, BSD a licence třetích stran.</p>"
-                "<p>Oznámení a licence jsou ve složce licenses vedle aplikace. "
-                "Kompatibilní Qt DLL lze nahradit; "
-                "zpětné inženýrství pro ladění změn LGPL knihoven je dovoleno.</p>"
-                "<p>Text: výběr tažením a Ctrl+C. Výřez: obdélník do schránky nebo PNG/JPG. "
-                "Výběr je omezen na jednu stránku, bez OCR.</p>"
-                "<p>Ctrl+F: hledání textu. Ctrl+P: tisk. Soubor → PDF z obrázků: "
-                "nové PDF ze sady obrázků. Otočení mění pouze zobrazení.</p>")
+            uiText(QStringLiteral(
+                       "<b>Airlet PDF %1</b><p>Rychlý lokální PDF prohlížeč.</p>"
+                       "<p>Qt %2, dynamicky připojené knihovny pod LGPLv3.<br>PDFium "
+                       "chromium/8125, BSD a licence třetích stran.</p>"
+                       "<p>Oznámení a licence jsou ve složce licenses vedle aplikace. "
+                       "Kompatibilní Qt DLL lze nahradit; "
+                       "zpětné inženýrství pro ladění změn LGPL knihoven je dovoleno.</p>"
+                       "<p>Text: výběr tažením a Ctrl+C. Výřez: obdélník do schránky nebo PNG/JPG. "
+                       "Výběr je omezen na jednu stránku, bez OCR.</p>"
+                       "<p>Ctrl+F: hledání textu. Ctrl+P: tisk. Soubor → PDF z obrázků: "
+                       "nové PDF ze sady obrázků. Otočení mění pouze zobrazení.</p>"))
                 .arg(QCoreApplication::applicationVersion(), QString::fromLatin1(qVersion())));
         box.exec();
     });
-    menuBar()->addMenu(QStringLiteral("Nápověda"))->addAction(aboutAction);
+    menuBar()->addMenu(uiText(QStringLiteral("Nápověda")))->addAction(aboutAction);
     for (auto *a : documentActions)
         a->setEnabled(false);
     page->setEnabled(false);
     connect(view, &PdfView::pageChanged, this, [this, documentActions](int current, int total) {
-        if (total == 0)
+        if (total == 0) {
+            pendingFolderRequest = 0;
             cancelAreaOperation();
+        }
         const QSignalBlocker blocker(page);
         page->setMaximum(std::max(1, total));
         page->setValue(std::max(1, current));
@@ -236,18 +291,22 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     });
     connect(view, &PdfView::fileDropped, this, &MainWindow::openFile);
     connect(view, &PdfView::documentOpened, this, [this](QString p, int) {
+        if (automaticOpening) {
+            view->suppressNavigationInput();
+            automaticOpening = false;
+        }
         openedPath = p;
         lastFolder = QFileInfo(p).absolutePath();
         setWindowTitle(QFileInfo(p).fileName() + QStringLiteral(" — Airlet PDF"));
-        statusBar()->showMessage(QStringLiteral(
-            "Otočení mění pouze zobrazení. Ctrl+kolečko: zoom; prostřední tlačítko: posun."));
+        statusBar()->showMessage(uiText(QStringLiteral(
+            "Otočení mění pouze zobrazení. Ctrl+kolečko: zoom; prostřední tlačítko: posun.")));
     });
     connect(view, &PdfView::openFailed, this, [this](QString p, OpenResult result) {
         if (result.error == OpenError::Password) {
             bool ok = false;
-            const auto password = QInputDialog::getText(this, QStringLiteral("Chráněné PDF"),
-                                                        QStringLiteral("Heslo dokumentu:"),
-                                                        QLineEdit::Password, {}, &ok);
+            const auto password = QInputDialog::getText(
+                this, uiText(QStringLiteral("Chráněné PDF")),
+                uiText(QStringLiteral("Heslo dokumentu:")), QLineEdit::Password, {}, &ok);
             if (ok)
                 view->openFile(p, password);
         } else
@@ -257,7 +316,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         if (QCoreApplication::arguments().contains("--metrics"))
             qInfo("first_image_from_open_ms=%lld", static_cast<long long>(ms));
         statusBar()->showMessage(
-            QStringLiteral("První obraz za %1 ms · Ctrl+kolečko: zoom · prostřední tlačítko: posun")
+            uiText(QStringLiteral(
+                       "První obraz za %1 ms · Ctrl+kolečko: zoom · prostřední tlačítko: posun"))
                 .arg(ms));
     });
     view->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -268,13 +328,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 menu.addAction(copyAction);
                 menu.addAction(saveAreaAction);
                 menu.addSeparator();
-                menu.addAction(QStringLiteral("Vybrat text"), textMode, &QAction::trigger);
-                menu.addAction(QStringLiteral("Vybrat výřez"), areaMode, &QAction::trigger);
-                menu.addAction(QStringLiteral("Zrušit výběr"), view, &PdfView::clearSelection);
+                menu.addAction(uiText(QStringLiteral("Vybrat text")), textMode, &QAction::trigger);
+                menu.addAction(uiText(QStringLiteral("Vybrat výřez")), areaMode, &QAction::trigger);
+                menu.addAction(uiText(QStringLiteral("Zrušit výběr")), view,
+                               &PdfView::clearSelection);
                 menu.addSeparator();
-                menu.addAction(QStringLiteral("Šířka stránky"), view, &PdfView::fitWidth);
-                menu.addAction(QStringLiteral("Celá stránka"), view, &PdfView::fitPage);
-                menu.addAction(QStringLiteral("Otočit doprava"), this, [this] { view->rotate(1); });
+                menu.addAction(uiText(QStringLiteral("Šířka stránky")), view, &PdfView::fitWidth);
+                menu.addAction(uiText(QStringLiteral("Celá stránka")), view, &PdfView::fitPage);
+                menu.addAction(uiText(QStringLiteral("Otočit doprava")), this,
+                               [this] { view->rotate(1); });
             }
             menu.exec(view->mapToGlobal(point));
         });
@@ -285,13 +347,14 @@ void MainWindow::copySelection() {
         if (pendingImage && pendingSavePath.isEmpty())
             cancelAreaOperation();
         QApplication::clipboard()->setText(text);
-        statusBar()->showMessage(QStringLiteral("Text je ve schránce."));
+        statusBar()->showMessage(uiText(QStringLiteral("Text je ve schránce.")));
         return;
     }
     if (!view->hasAreaSelection())
         return;
     if (imageSaver.isRunning() || pendingImage) {
-        statusBar()->showMessage(QStringLiteral("Nejprve dokončete nebo zrušte předchozí výřez."));
+        statusBar()->showMessage(
+            uiText(QStringLiteral("Nejprve dokončete nebo zrušte předchozí výřez.")));
         return;
     }
     pendingSavePath.clear();
@@ -301,12 +364,13 @@ void MainWindow::saveArea() {
     if (!view->hasAreaSelection())
         return;
     if (imageSaver.isRunning() || pendingImage) {
-        statusBar()->showMessage(QStringLiteral("Nejprve dokončete nebo zrušte předchozí výřez."));
+        statusBar()->showMessage(
+            uiText(QStringLiteral("Nejprve dokončete nebo zrušte předchozí výřez.")));
         return;
     }
     QString filter = QStringLiteral("PNG (*.png)");
     const auto name = QFileInfo(openedPath).completeBaseName() + QStringLiteral("_vyrez.png");
-    auto target = QFileDialog::getSaveFileName(this, QStringLiteral("Uložit výřez"),
+    auto target = QFileDialog::getSaveFileName(this, uiText(QStringLiteral("Uložit výřez")),
                                                QDir(lastFolder).filePath(name),
                                                QStringLiteral("PNG (*.png);;JPG (*.jpg *.jpeg)"),
                                                &filter, QFileDialog::DontConfirmOverwrite);
@@ -317,16 +381,16 @@ void MainWindow::saveArea() {
     const auto ext = QFileInfo(target).suffix().toLower();
     if (ext != "png" && ext != "jpg" && ext != "jpeg") {
         QMessageBox::warning(
-            this, QStringLiteral("Výřez"),
-            QStringLiteral("Zvolte soubor PNG nebo JPG. PDF dokument se nepřepisuje."));
+            this, uiText(QStringLiteral("Výřez")),
+            uiText(QStringLiteral("Zvolte soubor PNG nebo JPG. PDF dokument se nepřepisuje.")));
         return;
     }
     const bool exists = QFileInfo::exists(target);
-    if (exists && QMessageBox::question(this, QStringLiteral("Přepsat obrázek?"),
-                                        QStringLiteral("Soubor %1 už existuje. Chcete jej přepsat?")
-                                            .arg(QFileInfo(target).fileName()),
-                                        QMessageBox::Yes | QMessageBox::No,
-                                        QMessageBox::No) != QMessageBox::Yes)
+    if (exists && QMessageBox::question(
+                      this, uiText(QStringLiteral("Přepsat obrázek?")),
+                      uiText(QStringLiteral("Soubor %1 už existuje. Chcete jej přepsat?"))
+                          .arg(QFileInfo(target).fileName()),
+                      QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
         return;
     pendingSavePath = target;
     pendingSaveSource = openedPath;
@@ -338,8 +402,8 @@ void MainWindow::beginAreaOperation() {
     pendingImage = view->requestSelectionImage();
     if (!pendingImage)
         return;
-    cropProgress = new QProgressDialog(QStringLiteral("Vytvářím výřez…"), QStringLiteral("Zrušit"),
-                                       0, 100, this);
+    cropProgress = new QProgressDialog(uiText(QStringLiteral("Vytvářím výřez…")),
+                                       uiText(QStringLiteral("Zrušit")), 0, 100, this);
     cropProgress->setWindowModality(Qt::NonModal);
     cropProgress->setMinimumDuration(0);
     cropProgress->setAutoClose(false);
@@ -353,7 +417,7 @@ void MainWindow::cancelAreaOperation() {
     view->cancelSelectionImage();
     imageSaver.cancel();
     endAreaOperation();
-    statusBar()->showMessage(QStringLiteral("Požadavek na výřez byl zrušen."));
+    statusBar()->showMessage(uiText(QStringLiteral("Požadavek na výřez byl zrušen.")));
 }
 void MainWindow::endAreaOperation() {
     pendingImage = 0;
@@ -376,15 +440,16 @@ void MainWindow::exportPages() {
     if (openedPath.isEmpty())
         return;
     if (exportProcess.state() != QProcess::NotRunning) {
-        statusBar()->showMessage(QStringLiteral("Export už probíhá."));
+        statusBar()->showMessage(uiText(QStringLiteral("Export už probíhá.")));
         return;
     }
     QDialog dialog(this);
-    dialog.setWindowTitle(QStringLiteral("Export stránek do obrázků"));
+    dialog.setWindowTitle(uiText(QStringLiteral("Export stránek do obrázků")));
     QFormLayout form(&dialog);
     QComboBox scope;
-    scope.addItems({QStringLiteral("Aktuální stránka"), QStringLiteral("Všechny stránky"),
-                    QStringLiteral("Vlastní rozsah")});
+    scope.addItems({uiText(QStringLiteral("Aktuální stránka")),
+                    uiText(QStringLiteral("Všechny stránky")),
+                    uiText(QStringLiteral("Vlastní rozsah"))});
     QLineEdit range;
     range.setPlaceholderText(QStringLiteral("1–5, 8, 12"));
     range.setEnabled(false);
@@ -401,11 +466,11 @@ void MainWindow::exportPages() {
     quality.setEnabled(false);
     connect(&format, qOverload<int>(&QComboBox::currentIndexChanged), &quality,
             [&quality](int i) { quality.setEnabled(i == 1); });
-    form.addRow(QStringLiteral("Stránky:"), &scope);
-    form.addRow(QStringLiteral("Rozsah:"), &range);
-    form.addRow(QStringLiteral("Formát:"), &format);
+    form.addRow(uiText(QStringLiteral("Stránky:")), &scope);
+    form.addRow(uiText(QStringLiteral("Rozsah:")), &range);
+    form.addRow(uiText(QStringLiteral("Formát:")), &format);
     form.addRow(QStringLiteral("DPI:"), &dpi);
-    form.addRow(QStringLiteral("Kvalita JPG:"), &quality);
+    form.addRow(uiText(QStringLiteral("Kvalita JPG:")), &quality);
     QDialogButtonBox buttons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     form.addRow(&buttons);
     connect(&buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -419,17 +484,18 @@ void MainWindow::exportPages() {
     QString error;
     const auto pages = parsePageRange(specification, view->pageCount(), &error);
     if (!error.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("Rozsah"), error);
+        QMessageBox::warning(this, uiText(QStringLiteral("Rozsah")), error);
         return;
     }
     const auto parent = QFileDialog::getExistingDirectory(
-        this, QStringLiteral("Nadřazená složka exportu (vytvoří se složka podle PDF)"), lastFolder);
+        this, uiText(QStringLiteral("Nadřazená složka exportu (vytvoří se složka podle PDF)")),
+        lastFolder);
     if (parent.isEmpty())
         return;
     const auto output = QDir(parent).filePath(QFileInfo(openedPath).completeBaseName());
     if (!QDir().mkpath(output)) {
         QMessageBox::warning(this, QStringLiteral("Export"),
-                             QStringLiteral("Složku nelze vytvořit."));
+                             uiText(QStringLiteral("Složku nelze vytvořit.")));
         return;
     }
     exportTemporary =
@@ -441,17 +507,22 @@ void MainWindow::exportPages() {
     QJsonArray rotations;
     for (int r : view->pageRotations())
         rotations.append(r);
-    const QJsonObject job{{"source", openedPath},       {"password", view->exportPassword()},
-                          {"range", specification},     {"dpi", dpi.value()},
-                          {"quality", quality.value()}, {"format", format.currentText()},
-                          {"output", output},           {"temporary", exportTemporary->path()},
+    const QJsonObject job{{"language", languageCode()},
+                          {"source", openedPath},
+                          {"password", view->exportPassword()},
+                          {"range", specification},
+                          {"dpi", dpi.value()},
+                          {"quality", quality.value()},
+                          {"format", format.currentText()},
+                          {"output", output},
+                          {"temporary", exportTemporary->path()},
                           {"rotations", rotations}};
     exportCompleted = 0;
     exportError.clear();
     exportCancelled = false;
     exportBuffer.clear();
-    exportProgress = new QProgressDialog(QStringLiteral("Exportuji stránky…"),
-                                         QStringLiteral("Zrušit"), 0, pages.size(), this);
+    exportProgress = new QProgressDialog(uiText(QStringLiteral("Exportuji stránky…")),
+                                         uiText(QStringLiteral("Zrušit")), 0, pages.size(), this);
     exportProgress->setWindowModality(Qt::NonModal);
     exportProgress->setMinimumDuration(0);
     exportProgress->setAutoClose(false);
@@ -476,31 +547,33 @@ void MainWindow::exportPages() {
             }
         }
     });
-    connect(
-        &exportProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-        [this, output](int code, QProcess::ExitStatus status) {
-            if (exportProgress) {
-                exportProgress->hide();
-                exportProgress->deleteLater();
-                exportProgress = nullptr;
-            }
-            exportTemporary.reset();
-            const auto message =
-                QStringLiteral("Dokončeno %1 stran. Složka: %2").arg(exportCompleted).arg(output);
-            if (exportCancelled)
-                QMessageBox::information(this, QStringLiteral("Export zrušen"),
-                                         message +
-                                             QStringLiteral("\nHotové obrázky zůstaly zachovány, "
-                                                            "nedokončený výstup byl odstraněn."));
-            else if (code != 0 || status != QProcess::NormalExit)
-                QMessageBox::warning(this, QStringLiteral("Export nebyl dokončen"),
-                                     message + "\n" +
-                                         (exportError.isEmpty()
-                                              ? QStringLiteral("Pomocný proces skončil chybou.")
-                                              : exportError));
-            else
-                QMessageBox::information(this, QStringLiteral("Export dokončen"), message);
-        });
+    connect(&exportProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+            [this, output](int code, QProcess::ExitStatus status) {
+                if (exportProgress) {
+                    exportProgress->hide();
+                    exportProgress->deleteLater();
+                    exportProgress = nullptr;
+                }
+                exportTemporary.reset();
+                const auto message = uiText(QStringLiteral("Dokončeno %1 stran. Složka: %2"))
+                                         .arg(exportCompleted)
+                                         .arg(output);
+                if (exportCancelled)
+                    QMessageBox::information(
+                        this, uiText(QStringLiteral("Export zrušen")),
+                        message + uiText(QStringLiteral("\nHotové obrázky zůstaly zachovány, "
+                                                        "nedokončený výstup byl odstraněn.")));
+                else if (code != 0 || status != QProcess::NormalExit)
+                    QMessageBox::warning(
+                        this, uiText(QStringLiteral("Export nebyl dokončen")),
+                        message + "\n" +
+                            (exportError.isEmpty()
+                                 ? uiText(QStringLiteral("Pomocný proces skončil chybou."))
+                                 : exportError));
+                else
+                    QMessageBox::information(this, uiText(QStringLiteral("Export dokončen")),
+                                             message);
+            });
     connect(&exportProcess, &QProcess::started, this, [this, job] {
         exportProcess.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + "\n");
         exportProcess.closeWriteChannel();
@@ -525,14 +598,16 @@ void MainWindow::exportPages() {
     exportProgress->show();
 }
 void MainWindow::chooseFile() {
-    const auto p =
-        QFileDialog::getOpenFileName(this, QStringLiteral("Otevřít PDF"), lastFolder,
-                                     QStringLiteral("PDF dokumenty (*.pdf);;Všechny soubory (*)"));
+    const auto p = QFileDialog::getOpenFileName(
+        this, uiText(QStringLiteral("Otevřít PDF")), lastFolder,
+        uiText(QStringLiteral("PDF dokumenty (*.pdf);;Všechny soubory (*)")));
     if (!p.isEmpty())
         openFile(p);
 }
 void MainWindow::openFile(const QString &p) {
     if (!p.isEmpty()) {
+        pendingFolderRequest = 0;
+        automaticOpening = false;
         openedPath.clear();
         setWindowTitle(QStringLiteral("Airlet PDF"));
         view->openFile(QFileInfo(p).absoluteFilePath());

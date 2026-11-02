@@ -1,8 +1,10 @@
+#include "core/FolderNavigator.h"
 #include "core/Geometry.h"
 #include "core/PdfEngine.h"
 #include "core/Selection.h"
 #include "export/ImageSaveJob.h"
 #include "export/PageExport.h"
+#include "i18n/Language.h"
 #include "render/RenderService.h"
 #include "render/TileCache.h"
 #include "ui/MainWindow.h"
@@ -22,9 +24,11 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenuBar>
 #include <QProcess>
 #include <QScrollBar>
 #include <QSignalSpy>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolBar>
@@ -40,10 +44,10 @@ static QString fixture(const char *name) {
     return QString::fromUtf8(FIXTURE_DIR) + "/" + name;
 }
 static void wheel(PdfView &view, int angle, QPoint pixels = {},
-                  Qt::KeyboardModifiers modifiers = {}) {
+                  Qt::KeyboardModifiers modifiers = {}, Qt::ScrollPhase phase = Qt::NoScrollPhase) {
     const auto local = view.viewport()->rect().center();
     QWheelEvent event(local, view.viewport()->mapToGlobal(local), pixels, QPoint(0, angle),
-                      Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+                      Qt::NoButton, modifiers, phase, false);
     QApplication::sendEvent(view.viewport(), &event);
 }
 static void dragSelection(PdfView &view, QPointF first, QPointF last) {
@@ -86,6 +90,139 @@ class SlowEngine final : public PdfEngine {
 class TestAirlet final : public QObject {
     Q_OBJECT
   private slots:
+    void folderOrderAndContinuation() {
+        QVERIFY(compareDocumentNames("sheet2.pdf", "sheet10.pdf") < 0);
+        QVERIFY(compareDocumentNames("sheet10.pdf", "sheet100.pdf") < 0);
+        QVERIFY(compareDocumentNames("sheet2.pdf", "sheet02.pdf") != 0);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto one = dir.filePath("sheet1.pdf"), two = dir.filePath("sheet2.PDF"),
+                   ten = dir.filePath("sheet10.pdf");
+        QVERIFY(QFile::copy(fixture("scan.pdf"), one));
+        QVERIFY(QFile::copy(fixture("scan.pdf"), two));
+        QVERIFY(QFile::copy(fixture("basic.pdf"), ten));
+        QVERIFY(QDir(dir.path()).mkdir("nested"));
+        QVERIFY(QFile::copy(fixture("scan.pdf"), dir.filePath("nested/sheet3.pdf")));
+        FolderNavigator nav;
+        QSignalSpy resolved(&nav, &FolderNavigator::resolved);
+        const auto id = nav.request(one);
+        QTRY_COMPARE(resolved.size(), 1);
+        QCOMPARE(resolved[0][0].toULongLong(), id);
+        QCOMPARE(resolved[0][2].toString(), two);
+        MainWindow window;
+        window.show();
+        auto *view = window.pdfView();
+        QSignalSpy opened(view, &PdfView::documentOpened), first(view, &PdfView::firstImage);
+        window.openFile(one);
+        QTRY_COMPARE(first.size(), 1);
+        auto *toggle = window.findChild<QAction *>("continueDocuments");
+        QVERIFY(toggle);
+        QVERIFY(!toggle->isChecked());
+        view->fitPage();
+        wheel(*view, -120);
+        QTest::qWait(30);
+        QCOMPARE(opened.size(), 1);
+        toggle->setChecked(true);
+        wheel(*view, -120);
+        QTRY_COMPARE(opened.size(), 2);
+        QCOMPARE(opened[1][0].toString(), two);
+        QTRY_COMPARE(first.size(), 2);
+        for (int i = 0; i < 8; ++i)
+            wheel(*view, -120);
+        QTest::qWait(30);
+        QCOMPARE(opened.size(), 2);
+        QTest::qWait(650);
+        wheel(*view, -120);
+        QTRY_COMPARE(opened.size(), 3);
+        QCOMPARE(opened[2][0].toString(), ten);
+        QTRY_COMPARE(first.size(), 3);
+        view->goToPage(2);
+        QTest::qWait(30);
+        QCOMPARE(opened.size(), 3);
+        QTest::qWait(650);
+        wheel(*view, -120);
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains(QString::fromUtf8("není další")));
+        QCOMPARE(opened.size(), 3); // no wrap at folder end
+        MainWindow fresh;
+        QVERIFY(!fresh.findChild<QAction *>("continueDocuments")->isChecked());
+
+        // Switching off before a queued directory result prevents a late transition.
+        window.openFile(one);
+        QTRY_COMPARE(first.size(), 4);
+        view->fitPage();
+        QTest::qWait(650);
+        wheel(*view, -120);
+        toggle->setChecked(false);
+        QTest::qWait(150);
+        QCOMPARE(opened.size(), 4);
+    }
+    void continuationAtScrollBoundary() {
+        PdfView view;
+        view.resize(600, 500);
+        view.show();
+        QSignalSpy first(&view, &PdfView::firstImage), next(&view, &PdfView::nextDocumentRequested);
+        view.openFile(fixture("scan.pdf"));
+        QTRY_COMPARE(first.size(), 1);
+        view.setContinueToNextDocument(true);
+        view.setZoom(3.);
+        QVERIFY(view.verticalScrollBar()->maximum() > 0);
+        view.verticalScrollBar()->setValue(view.verticalScrollBar()->maximum() - 1);
+        wheel(view, -120);
+        QCOMPARE(next.size(), 0); // merely reaching the end
+        wheel(view, -120);
+        QCOMPARE(next.size(), 1);
+        view.setContinueToNextDocument(false);
+        view.setContinueToNextDocument(true);
+        wheel(view, 0, QPoint(0, -120), Qt::NoModifier, Qt::ScrollMomentum);
+        QCOMPARE(next.size(), 1);
+        wheel(view, -120, {}, Qt::ControlModifier);
+        QCOMPARE(next.size(), 1);
+        wheel(view, -120, {}, Qt::ShiftModifier);
+        QCOMPARE(next.size(), 1);
+        view.fitPage();
+        wheel(view, 0, QPoint(0, -200), Qt::NoModifier, Qt::ScrollMomentum);
+        QCOMPARE(next.size(), 1);
+        wheel(view, -120);
+        QCOMPARE(next.size(), 2);
+        view.setContinueToNextDocument(false);
+        wheel(view, -120);
+        QCOMPARE(next.size(), 2);
+    }
+    void englishInterfaceAndWorker() {
+        struct Restore {
+            ~Restore() {
+                setLanguage("cs");
+            }
+        } restore;
+        setLanguage("en");
+        QCOMPARE(uiText(QString::fromUtf8("Otevřít…")), QString::fromUtf8("Open…"));
+        QCOMPARE(uiText(QString::fromUtf8("Pokračovat dalším PDF")),
+                 QString("Continue to next PDF"));
+        QCOMPARE(languageCode(), QString("en"));
+        {
+            MainWindow window;
+            bool open = false, help = false;
+            for (auto *a : window.findChildren<QAction *>()) {
+                open |= a->text() == QString::fromUtf8("Open…");
+                help |= a->text() == "Help";
+            }
+            QVERIFY(open);
+            QVERIFY(help);
+        }
+        QProcess worker;
+        worker.start(QString::fromUtf8(EXPORT_EXE), {});
+        QVERIFY(worker.waitForStarted(5000));
+        worker.write(QJsonDocument(QJsonObject{{"language", "en"},
+                                               {"mode", "search"},
+                                               {"source", fixture("basic.pdf")},
+                                               {"query", ""}})
+                         .toJson(QJsonDocument::Compact) +
+                     '\n');
+        worker.closeWriteChannel();
+        QVERIFY(worker.waitForFinished(10000));
+        QCOMPARE(worker.exitCode(), 1);
+        QVERIFY(worker.readAllStandardOutput().contains("Enter no more than 256 characters."));
+    }
     void continuousHighlightBands() {
         // Varying ascenders/descenders, kerning overlap and a word space form one band.
         const QVector<QRectF> boxes{{10, 10, 6, 12}, {15, 12, 5, 7},  {23, 11, 7, 9},

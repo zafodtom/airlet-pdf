@@ -1,5 +1,6 @@
 #include "RenderService.h"
 #include "core/Geometry.h"
+#include "i18n/Language.h"
 #include <QElapsedTimer>
 #include <QPainter>
 namespace airlet {
@@ -150,7 +151,7 @@ void RenderService::run(Factory factory) {
                     this,
                     [this, c] {
                         emit areaReady(c.session, c.request, {},
-                                       QStringLiteral("Neplatný nebo příliš velký výřez."));
+                                       uiText(QStringLiteral("Neplatný nebo příliš velký výřez.")));
                     },
                     Qt::QueuedConnection);
                 continue;
@@ -161,7 +162,7 @@ void RenderService::run(Factory factory) {
                     this,
                     [this, c] {
                         emit areaReady(c.session, c.request, {},
-                                       QStringLiteral("Pro výřez není dostatek paměti."));
+                                       uiText(QStringLiteral("Pro výřez není dostatek paměti.")));
                     },
                     Qt::QueuedConnection);
                 continue;
@@ -208,7 +209,7 @@ void RenderService::run(Factory factory) {
                     this,
                     [this, c] {
                         emit areaReady(c.session, c.request, {},
-                                       QStringLiteral("Výřez nelze vykreslit."));
+                                       uiText(QStringLiteral("Výřez nelze vykreslit.")));
                     },
                     Qt::QueuedConnection);
                 continue;
