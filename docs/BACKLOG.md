@@ -2,7 +2,8 @@
 
 ## M1 – před označením Windows verze za hotovou
 
-- Úspěšně provést Windows Release workflow, získat EXE + instalátor a prověřit čisté Windows 10/11 x64.
+- Windows Release workflow #2, EXE, testy i instalátor jsou úspěšně vytvořené. Zbývá prověřit čisté Windows 10/11 x64, instalaci a odinstalaci.
+- Při příštím build cyklu sjednotit PDFIUM_ROOT na CMake lomítka a omezit automaticky přidávané generic pluginy windeployqt; balíček nyní obsahuje nepoužívanou závislost QtNetwork. Nevytvářet další CI běh jen kvůli těmto neblokujícím upozorněním.
 - Změřit skutečný studený start, opakovaný start, HiDPI přesun monitorů, rychlé listování a A0 výkres na cílovém Xeonu/K2200.
 - Prověřit paměť po dlouhém listování, klidovou CPU a ukončení během komplikovaného dekódování.
 

@@ -2,7 +2,7 @@
 
 Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Žádné účty, cloud, síťové požadavky, telemetrie ani proces po zavření.
 
-**Stav:** implementace prvního milníku; viz [ověření](docs/VALIDATION.md). Windows instalátor musí projít Windows sestavením a praktickou zkouškou. Připravený workflow není dokladem úspěšného běhu.
+**Stav:** první Windows Release sestavení je připravené k praktickému vyzkoušení. [CI běh #2](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485) úspěšně zkompiloval aplikaci, spustil automatické testy a vytvořil instalátor i přenosný ZIP. Interaktivní GUI, čistá instalace a výkon na cílovém PC ještě čekají na ověření; viz [výsledky](docs/VALIDATION.md).
 
 ## Implementováno
 
@@ -19,6 +19,8 @@ Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++2
 **Otočení se nyní neukládá.** Výběr textu/obrázků, výřez, tisk, export a skládání PDF ještě nejsou součástí uživatelského rozhraní. [Plán](docs/BACKLOG.md).
 
 ## Sestavení a instalace
+
+Balíček z úspěšného běhu #2: [AirletPDF-0.1.0-x64](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974), přístupný přihlášenému vlastníkovi do 5. 11. 2026. ZIP obsahuje instalátor a přenosný ZIP; další spuštění workflow vytvoří nový balíček.
 
 Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.1.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
 

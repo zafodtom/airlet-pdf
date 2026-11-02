@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-02",
+  "repository": "zafodtom/airlet-pdf",
+  "run_number": 2,
+  "run_id": 41471603485,
+  "run_url": "https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485",
+  "source_commit": "3a61da0e03c1c4f9d9e412e7dd9b63fc4d500cfd",
+  "conclusion": "success",
+  "environment": {
+    "os": "Windows Server 2022 10.0.20348",
+    "runner": "windows-2022 20261025.346.1",
+    "msvc": "19.44.35229.0",
+    "windows_sdk": "10.0.26100.0",
+    "qt": "6.8.3",
+    "pdfium": "chromium/8125",
+    "configuration": "Release",
+    "inno_setup": "6.7.1"
+  },
+  "tests": {
+    "runner": "CTest, airlet QtTest executable, offscreen",
+    "targets_passed": 1,
+    "targets_failed": 0,
+    "elapsed_seconds": 2.24
+  },
+  "artifact": {
+    "id": 13154494974,
+    "bytes": 126299469,
+    "sha256": "8d874c6e015895ea1a022ae845da02839ada8df2abb6c77c1521dd9f5b75cdb3",
+    "url": "https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974",
+    "expires_at": "2026-11-05T15:28:13Z"
+  },
+  "files": {
+    "AirletPDF-Setup-0.1.0-x64.exe": {
+      "bytes": 61834219,
+      "sha256": "c8169beda7caffa4b6a7d2c0d86272b4fe91ac5942808dfaa1fda41594f41412"
+    },
+    "AirletPDF-0.1.0-x64-portable.zip": {
+      "bytes": 65012037,
+      "sha256": "de8aa842ff3a50499b3f651f81ccaf1ad248be88db8892ea452161a2bb7f0b4d"
+    }
+  },
+  "verified": [
+    "artifact SHA256 against GitHub digest",
+    "both inner release SHA256 values",
+    "ZIP integrity",
+    "AirletPDF.exe PE AMD64",
+    "required Qt/PDFium/platform/MSVC runtime files",
+    "bundled corresponding Qt source SHA256"
+  ],
+  "not_tested": [
+    "interactive Windows desktop GUI",
+    "clean-machine installer execution/uninstall",
+    "Windows cold/warm startup",
+    "Windows idle CPU and long-term memory",
+    "physical HiDPI monitor transitions"
+  ],
+  "nonfatal_packaging_warnings": [
+    "CMake generated install script contains backslash escapes from PDFIUM_ROOT",
+    "optional DX compiler DLLs not found; viewer uses QWidget raster painting",
+    "windeployqt added QtNetwork via unused generic touch plugin",
+    "Qt translation catalog metadata absent; translations intentionally not deployed"
+  ]
+}

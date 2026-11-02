@@ -4,7 +4,7 @@
 
 Ubuntu 24.04.3 LTS v řízeném kontejneru, GCC 13.3.0, CMake 3.31.6, Qt 6.4.2, PDFium 158.0.8125.0 (chromium/8125), **Release**, backend Qt offscreen. Nejde o cílový Windows počítač ani skutečný monitor. Soukromá uživatelská PDF nebyla použita.
 
-Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně staženy; zjištěné SHA256 jsou uzamčeny. Zkontrolována struktura archivů, importní knihovna PDFium, dostupnost windeployqt, jeho přepínače v odpovídajícím Qt zdroji a licenční soubory. První Windows build č. 1 (https://github.com/zafodtom/airlet-pdf/actions/runs/41470150175) ověřil stažení/rozbalení závislostí a CMake konfiguraci na Windows Server 2022, MSVC 19.44.35229.0, SDK 10.0.26100.0. Kompilace adaptéru PDFium selhala na kolizi makra Windows `max` se `std::max`. Doplněno NOMINMAX a WIN32_LEAN_AND_MEAN; testy MSVC nově explicitně používají UTF-8. Oprava zatím čeká na nový Windows běh. GUI, testy a instalátor ve Windows dosud neproběhly.
+Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně staženy; zjištěné SHA256 jsou uzamčeny. Zkontrolována struktura archivů, importní knihovna PDFium, dostupnost windeployqt, jeho přepínače v odpovídajícím Qt zdroji a licenční soubory. První Windows build č. 1 (https://github.com/zafodtom/airlet-pdf/actions/runs/41470150175) ověřil stažení/rozbalení závislostí a CMake konfiguraci na Windows Server 2022, MSVC 19.44.35229.0, SDK 10.0.26100.0. Kompilace adaptéru PDFium selhala na kolizi makra Windows `max` se `std::max`. Doplněno NOMINMAX a WIN32_LEAN_AND_MEAN; testy MSVC nově explicitně používají UTF-8. Oprava prošla v novém [Windows běhu #2](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485): Release kompilace, automatické offscreen testy a Inno Setup skončily úspěšně. Interaktivní GUI a skutečná instalace na čistém cílovém PC ještě neproběhly.
 
 ## Výsledky
 
@@ -26,7 +26,10 @@ Windows závislosti Qt 6.8.3 MSVC 2022 x64 a PDFium win-x64 byly skutečně sta�
 | Otevření zobrazuje začátek první stránky | Prošlo |
 | Vizuální kontrola rasteru a hlavního okna | Provedena na offscreen snímcích syntetického PDF |
 | Windows CMake konfigurace | Prošla v prvním CI běhu |
-| Windows Release kompilace | První běh selhal na makru max; oprava připravena pro nový běh |
+| Windows Release kompilace | **Prošla v CI běhu #2**, MSVC 19.44, Qt 6.8.3 |
+| Windows automatické testy | **Prošly**: CTest 1/1 cíl, 0 selhání, 2,24 s, Qt offscreen |
+| Inno Setup a přenosný ZIP | **Úspěšně vytvořeny**, Inno Setup 6.7.1 |
+| Kontrola distribučních souborů | SHA256, integrita ZIP, EXE PE x64, Qt/PDFium/MSVC DLL, licence a zdroj Qt ověřeny |
 | Windows GUI, instalace a odinstalace | **Neprovedeno** |
 | Windows přechod mezi skutečnými HiDPI monitory | **Neprovedeno** |
 | Studený start se řízenou cache | **Neprovedeno** |
@@ -61,8 +64,17 @@ Externí CPU/RSS čítače virtualizovaného `/proc` vracely nespolehlivé výsl
 - Windows sestavení definuje NOMINMAX před windows.h z PDFium, aby nezničilo volání std::max; MSVC testy mají explicitní UTF-8.
 - Změna rozměru dosud neznámé stránky ihned invaliduje rozpracovanou generaci.
 
-## Zbývající překážka a stav dodávky
+## Dostupný balíček a zbývající praktické ověření
 
-Vlastník následně založil `zafodtom/airlet-pdf`; připojení ověřilo soukromou viditelnost, prázdný repozitář a oprávnění admin/push. Implementace se nahrává přímo tam. Nic do jiného repozitáře nebylo zapisováno. **Windows instalační artefakt zatím nevznikl** a M1 proto nelze označit za kompletně dodaný pro Windows.
+Soukromý repozitář: https://github.com/zafodtom/airlet-pdf
 
-Zdrojový strom obsahuje použitelnou Linuxem ověřenou implementaci, manuální Windows workflow a instalátorový skript. Následující krok je úspěšný ruční Windows build; podrobnosti v GITHUB.md a BUILD.md. GitHub připojení nemá workflow-dispatch operaci, proto je pro spuštění potřeba webové rozhraní nebo autorizované CLI.
+Úspěšný běh #2 pro commit `3a61da0` vytvořil [artefakt AirletPDF-0.1.0-x64](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974). Je dostupný oprávněnému přihlášenému uživateli do 5. 11. 2026. Kompletní strukturovaný záznam je v `docs/validation/windows-build-2.json`.
+
+- Instalátor `AirletPDF-Setup-0.1.0-x64.exe`: 61 834 219 B, SHA256 `c8169beda7caffa4b6a7d2c0d86272b4fe91ac5942808dfaa1fda41594f41412`.
+- Přenosný ZIP `AirletPDF-0.1.0-x64-portable.zip`: 65 012 037 B, SHA256 `de8aa842ff3a50499b3f651f81ccaf1ad248be88db8892ea452161a2bb7f0b4d`.
+
+Oba kontrolní součty byly ověřeny proti přiloženému SHA256SUMS.txt, celý artefakt proti digestu GitHubu. V přenosném ZIPu byly ověřeny požadované DLL, qwindows plugin, EXE pro AMD64, licence a správný odpovídající archiv zdrojů Qt.
+
+Zbývá praktická instalace a odinstalace na Windows 10/11, interaktivní GUI, studený/teplý start, dlouhodobá paměť, klidová CPU a skutečné HiDPI monitory na cílovém PC. Nejsou tvrzeny žádné Windows výkonové výsledky.
+
+CI balení má neblokující upozornění: zpětná lomítka PDFIUM_ROOT v generovaném install skriptu, chybějící volitelné DX shader DLL a metadata překladů. Všechny povinné soubory byly přesto přiloženy. windeployqt navíc přibalil QtNetwork kvůli generic touch pluginu; aplikace sama síťové API nepoužívá. Úklid balení je zaznamenán v backlogu pro příští build cyklus, bez dalšího CI běhu pouze kvůli upozorněním.

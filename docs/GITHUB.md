@@ -4,7 +4,7 @@ Repozitář: https://github.com/zafodtom/airlet-pdf
 
 Dne 2. 11. 2026 bylo přes GitHub připojení ověřeno, že repozitář je **soukromý**, má výchozí větev `main` a účet `zafodtom` má oprávnění admin/push. Před prvním nahráním neměl žádné větve ani obsah. Repozitář založil vlastník; připojení samo operaci pro vytváření repozitářů nemá.
 
-Implementace se nahrává do tohoto repozitáře. Žádný jiný projekt ani existující uživatelský obsah se nepřepisuje. Do Git nepřidávat `.deps`, `build`, soukromá PDF ani výkonové záznamy s názvy soukromých souborů.
+Implementace je nahraná v tomto repozitáři. Žádný jiný projekt ani existující uživatelský obsah se nepřepisuje. Do Git nepřidávat `.deps`, `build`, soukromá PDF ani výkonové záznamy s názvy soukromých souborů.
 
 ## Spuštění Windows sestavení
 
@@ -19,3 +19,7 @@ gh workflow run windows-release.yml --repo zafodtom/airlet-pdf --ref main
 ```
 
 Ruční spuštění vyžaduje přihlášení účtu s přístupem k repozitáři. Samotná přítomnost workflow není potvrzení úspěšného Windows sestavení. Skutečné ověření je v [VALIDATION.md](VALIDATION.md).
+
+## Ověřený Windows balíček
+
+[Běh #2](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485) pro commit `3a61da0` úspěšně dokončil Release kompilaci, automatické testy a Inno Setup. [Artefakt ke stažení](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974) je dostupný do 5. 11. 2026. Uvnitř je `AirletPDF-Setup-0.1.0-x64.exe`, přenosný ZIP a SHA256SUMS.txt. Zatím nebyla provedena skutečná interaktivní instalace na cílovém PC.
