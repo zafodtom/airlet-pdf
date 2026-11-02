@@ -150,6 +150,13 @@ class PdfiumEngine final : public PdfEngine {
             return {};
         return image;
     }
+    int printDpi() override {
+        std::lock_guard lock(apiMutex);
+        if (!doc)
+            return 0;
+        const auto permissions = FPDF_GetDocPermissions(doc);
+        return (permissions & (1u << 2)) ? ((permissions & (1u << 11)) ? 300 : 150) : 0;
+    }
     TextPage text(int index) override {
         std::lock_guard lock(apiMutex);
         TextPage result;

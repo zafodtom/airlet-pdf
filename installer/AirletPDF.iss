@@ -7,7 +7,7 @@
 [Setup]
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
-AppVersion=0.3.0
+AppVersion=0.4.0
 AppPublisher=Airlet PDF
 DefaultDirName={localappdata}\Programs\Airlet PDF
 DefaultGroupName=Airlet PDF
@@ -16,7 +16,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=AirletPDF-Setup-0.3.0-x64
+OutputBaseFilename=AirletPDF-Setup-0.4.0-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

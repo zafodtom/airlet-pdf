@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.24)
-project(AirletPDF VERSION 0.3.0 LANGUAGES CXX)
+project(AirletPDF VERSION 0.4.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 include(CTest)
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets PrintSupport)
 if(WIN32 AND NOT Qt6_VERSION VERSION_EQUAL "6.8.3")
   message(FATAL_ERROR "Release builds require Qt 6.8.3; see docs/BUILD.md")
 endif()
@@ -13,13 +13,14 @@ add_library(airlet_core STATIC
   src/core/Geometry.cpp src/core/Geometry.h src/core/PdfEngine.h
   src/core/Selection.cpp src/core/Selection.h
   src/export/PageExport.cpp src/export/PageExport.h
+  src/export/DocumentJobs.cpp src/export/DocumentJobs.h
   src/export/ImageSaveJob.cpp src/export/ImageSaveJob.h
   src/pdfium/PdfiumEngine.cpp src/pdfium/PdfiumEngine.h
   src/render/RenderService.cpp src/render/RenderService.h
   src/render/TileCache.h)
 target_include_directories(airlet_core PUBLIC src)
-target_link_libraries(airlet_core PUBLIC Qt6::Core Qt6::Gui PRIVATE pdfium)
-add_library(airlet_ui STATIC src/ui/PdfView.cpp src/ui/PdfView.h src/ui/MainWindow.cpp src/ui/MainWindow.h)
+target_link_libraries(airlet_core PUBLIC Qt6::Core Qt6::Gui Qt6::PrintSupport PRIVATE pdfium)
+add_library(airlet_ui STATIC src/ui/PdfView.cpp src/ui/PdfView.h src/ui/MainWindow.cpp src/ui/MainWindow.h src/ui/DocumentTools.cpp src/ui/DocumentTools.h)
 target_link_libraries(airlet_ui PUBLIC airlet_core Qt6::Widgets)
 add_executable(AirletExport src/export/WorkerMain.cpp)
 set_target_properties(AirletExport PROPERTIES WIN32_EXECUTABLE FALSE)

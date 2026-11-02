@@ -37,6 +37,8 @@ class PdfView final : public QAbstractScrollArea {
         return mode;
     }
     void clearSelection();
+    void showSearchHit(int page, QVector<QRectF> bounds, QSizeF points = {});
+    void clearSearchHit();
     QString selectedText() const;
     bool hasAreaSelection() const;
     quint64 requestSelectionImage();
@@ -78,6 +80,8 @@ class PdfView final : public QAbstractScrollArea {
     bool event(QEvent *) override;
 
   private:
+    int searchPage = -1;
+    QVector<QRectF> searchBounds;
     RenderService service;
     TileCache sharp{96}, previews{16};
     quint64 session = 0, generation = 0;

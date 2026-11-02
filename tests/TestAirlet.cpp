@@ -7,8 +7,10 @@
 #include "render/TileCache.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
+#include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QDialog>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -17,6 +19,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
+#include <QLineEdit>
 #include <QProcess>
 #include <QScrollBar>
 #include <QSignalSpy>
@@ -80,6 +84,181 @@ class SlowEngine final : public PdfEngine {
 class TestAirlet final : public QObject {
     Q_OBJECT
   private slots:
+    void documentJobsIntegration() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto run = [&](QJsonObject job, QJsonArray *records = nullptr) {
+            QProcess worker;
+            worker.start(QString::fromUtf8(EXPORT_EXE), {});
+            if (!worker.waitForStarted(5000))
+                return -999;
+            worker.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + '\n');
+            worker.closeWriteChannel();
+            if (!worker.waitForFinished(20000)) {
+                worker.kill();
+                worker.waitForFinished();
+                return -998;
+            }
+            const auto bytes = worker.readAllStandardOutput();
+            if (records)
+                for (const auto &line : bytes.split('\n'))
+                    if (!line.isEmpty())
+                        records->append(QJsonDocument::fromJson(line).object());
+            if (worker.exitCode())
+                qInfo().noquote() << bytes << worker.readAllStandardError();
+            return worker.exitStatus() == QProcess::NormalExit ? worker.exitCode() : -997;
+        };
+        QJsonObject search{
+            {"mode", "search"}, {"source", fixture("basic.pdf")}, {"query", "aIRLET TeST"}};
+        QJsonArray records;
+        QCOMPARE(run(search, &records), 0);
+        int matches = 0;
+        for (const auto &v : records)
+            for (const auto &m : v.toObject()["matches"].toArray()) {
+                ++matches;
+                QVERIFY(!m.toObject()["rects"].toArray().isEmpty());
+            }
+        QCOMPARE(matches, 3);
+        search["source"] = fixture("czech-text.pdf");
+        search["query"] = QString::fromUtf8("KŮŇ ÚPĚL");
+        records = {};
+        QCOMPARE(run(search, &records), 0);
+        QCOMPARE(records[0].toObject()["matches"].toArray().size(), 1);
+        search["source"] = fixture("scan.pdf");
+        records = {};
+        QCOMPARE(run(search, &records), 0);
+        QCOMPARE(records.last().toObject()["textPages"].toInt(), 0);
+        search["source"] = fixture("encrypted.pdf");
+        QCOMPARE(run(search), 1);
+        search["password"] = "airlet-test";
+        search["query"] = "Airlet";
+        QCOMPARE(run(search), 0);
+
+        QImage red(120, 60, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        QImage blue(60, 120, QImage::Format_RGB32);
+        blue.fill(Qt::blue);
+        const auto redPath = dir.filePath(QString::fromUtf8("červená.png")),
+                   bluePath = dir.filePath("blue.jpg");
+        QVERIFY(red.save(redPath));
+        QVERIFY(blue.save(bluePath));
+        const auto target = dir.filePath(QString::fromUtf8("obrázky.pdf"));
+        QJsonObject images{{"mode", "images"}, {"images", QJsonArray{bluePath, redPath}},
+                           {"output", target}, {"temporary", dir.path()},
+                           {"dpi", 72},        {"paper", 0}};
+        QCOMPARE(run(images), 0);
+        auto engine = makePdfiumEngine();
+        auto opened = engine->open(target, {});
+        QCOMPARE(opened.error, OpenError::None);
+        QCOMPARE(opened.pages, 2);
+        QCOMPARE(engine->pageInfo(0).points, QSizeF(60, 120));
+        QCOMPARE(engine->pageInfo(1).points, QSizeF(120, 60));
+        auto first = engine->render({0, 0, QSize(60, 120), QRect(0, 0, 60, 120), false, {}},
+                                    [] { return false; });
+        QVERIFY(first.pixelColor(30, 60).blue() > 240);
+        QVERIFY(first.pixelColor(30, 60).red() < 20);
+        auto second = engine->render({1, 0, QSize(120, 60), QRect(0, 0, 120, 60), false, {}},
+                                     [] { return false; });
+        QVERIFY(second.pixelColor(60, 30).red() > 240);
+        engine->close();
+        QFile existing(target);
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        const auto original = existing.readAll();
+        existing.close();
+        QCOMPARE(run(images), 1);
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        QCOMPARE(existing.readAll(), original);
+        existing.close();
+        images["output"] = dir.filePath("a4.pdf");
+        images["paper"] = 2;
+        QCOMPARE(run(images), 0);
+        QCOMPARE(engine->open(images["output"].toString(), {}).error, OpenError::None);
+        QVERIFY(std::abs(engine->pageInfo(0).points.width() - 841.89) < 2);
+        engine->close();
+        images["output"] = dir.filePath("broken.pdf");
+        images["images"] = QJsonArray{redPath, dir.filePath("missing.png")};
+        QCOMPARE(run(images), 1);
+        QVERIFY(!QFile::exists(images["output"].toString()));
+
+        QJsonObject print{{"mode", "print"},
+                          {"source", fixture("basic.pdf")},
+                          {"range", "1,3"},
+                          {"rotations", QJsonArray{1, 0, 0}},
+                          {"paperMm", QJsonArray{297, 210}},
+                          {"pdf", true},
+                          {"temporary", dir.path()},
+                          {"output", dir.filePath("printed.pdf")},
+                          {"resolution", 150},
+                          {"copies", 1}};
+        QCOMPARE(run(print), 0);
+        opened = engine->open(print["output"].toString(), {});
+        QCOMPARE(opened.error, OpenError::None);
+        QCOMPARE(opened.pages, 2);
+        QVERIFY(engine->pageInfo(0).points.width() > engine->pageInfo(0).points.height());
+        engine->close();
+        QCOMPARE(run(print), 1);
+        print["output"] = dir.filePath("invalid-print.pdf");
+        print["range"] = "0";
+        QCOMPARE(run(print), 1);
+        QVERIFY(!QFile::exists(print["output"].toString()));
+
+        // No partially built PDF may appear at the target when conversion is killed.
+        QJsonArray many;
+        for (int i = 0; i < 1000; ++i)
+            many.append(redPath);
+        images["images"] = many;
+        images["output"] = dir.filePath("cancelled.pdf");
+        QProcess cancelled;
+        cancelled.start(QString::fromUtf8(EXPORT_EXE), {});
+        QVERIFY(cancelled.waitForStarted(5000));
+        cancelled.write(QJsonDocument(images).toJson(QJsonDocument::Compact) + '\n');
+        cancelled.closeWriteChannel();
+        QVERIFY(cancelled.waitForReadyRead(10000));
+        cancelled.kill();
+        QVERIFY(cancelled.waitForFinished(5000));
+        QVERIFY(!QFile::exists(images["output"].toString()));
+    }
+    void searchWindowLifecycle() {
+        MainWindow window;
+        window.show();
+        window.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE(window.pdfView()->pageCount(), 3);
+        QAction *find = nullptr;
+        for (auto *a : window.findChildren<QAction *>())
+            if (a->shortcut() == QKeySequence::Find)
+                find = a;
+        QVERIFY(find);
+        find->trigger();
+        auto *query = window.findChild<QLineEdit *>("searchQuery");
+        auto *status = window.findChild<QLabel *>("searchStatus");
+        QVERIFY(query);
+        QVERIFY(status);
+        query->setText("Airlet test");
+        QTRY_VERIFY_WITH_TIMEOUT(status->text().startsWith("1 / 3"), 10000);
+        window.pdfView()->rotate(1);
+        window.pdfView()->setZoom(1.5);
+        QTest::keyClick(query, Qt::Key_Return);
+        QVERIFY(status->text().startsWith("2 / 3"));
+        window.openFile(fixture("mixed-pages.pdf"));
+        QTRY_COMPARE(window.pdfView()->pageCount(), 3);
+        const QRectF hit(20, 800, 30, 20);
+        window.pdfView()->showSearchHit(2, {hit}, QSizeF(200, 1000));
+        const auto visible = window.pdfView()->pageToViewport(2, hit.center());
+        QVERIFY(visible.y() >= 0 && visible.y() <= window.pdfView()->viewport()->height());
+        window.openFile(fixture("scan.pdf"));
+        QTRY_COMPARE(window.pdfView()->pageCount(), 1);
+        auto *dialog = window.findChild<QDialog *>("searchDialog");
+        QVERIFY(dialog);
+        QVERIFY(!dialog->isVisible());
+        find->trigger();
+        query->setText("nenalezeno");
+        QTRY_VERIFY_WITH_TIMEOUT(status->text().contains(QString::fromUtf8("bez OCR")), 10000);
+        dialog->reject();
+        QTest::qWait(30);
+        const auto jobs = window.pdfView()->jobsStarted();
+        QTest::qWait(100);
+        QCOMPARE(window.pdfView()->jobsStarted(), jobs);
+    }
     void exportWorkerIntegration() {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

@@ -1,10 +1,11 @@
 #include "PageExport.h"
+#include "DocumentJobs.h"
 #include "core/Geometry.h"
 #include "core/PdfEngine.h"
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QImageWriter>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -48,10 +49,12 @@ static void send(const QJsonObject &o) {
     std::fflush(stdout);
 }
 int runExportWorker(int argc, char **argv) {
-    QCoreApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     QFile input;
     input.open(stdin, QIODevice::ReadOnly);
     const auto job = QJsonDocument::fromJson(input.readLine()).object();
+    if (job.contains("mode"))
+        return runDocumentJob(job);
     auto fail = [](QString message) {
         send({{"error", message}});
         return 1;

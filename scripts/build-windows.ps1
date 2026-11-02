@@ -42,7 +42,7 @@ try {
     Copy-Item $deps.QtSource "$stage\sources\qtbase-everywhere-src-6.8.3.tar.xz"
     Copy-Item "$root\dependencies.lock.json" $stage
     New-Item -ItemType Directory -Force $dist | Out-Null
-    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.3.0-x64-portable.zip" -Force
+    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.4.0-x64-portable.zip" -Force
     if (!$SkipInstaller) {
         $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
         if (!(Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }

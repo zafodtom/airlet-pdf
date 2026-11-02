@@ -11,6 +11,7 @@ class QAction;
 class QProgressDialog;
 namespace airlet {
 class PdfView;
+class DocumentTools;
 class MainWindow final : public QMainWindow {
     Q_OBJECT
   public:
@@ -26,6 +27,7 @@ class MainWindow final : public QMainWindow {
 
   private:
     PdfView *view;
+    DocumentTools *tools;
     QSpinBox *page;
     QLabel *count;
     QString lastFolder;

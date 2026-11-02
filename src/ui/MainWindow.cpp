@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "DocumentTools.h"
 #include "PdfView.h"
 #include "export/PageExport.h"
 #include <QAction>
@@ -21,6 +22,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QSettings>
@@ -35,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     setWindowTitle(QStringLiteral("Airlet PDF"));
     resize(1050, 800);
     setCentralWidget(view);
+    tools = new DocumentTools(this, view);
     QSettings settings;
     restoreGeometry(settings.value("windowGeometry").toByteArray());
     lastFolder = settings.value("lastFolder").toString();
@@ -55,8 +58,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
     });
     auto *exportAction = action(QStringLiteral("Export…"), QKeySequence(Qt::CTRL | Qt::Key_E),
                                 [this] { exportPages(); });
+    auto *findAction = new QAction(QStringLiteral("Hledat…"), this);
+    findAction->setShortcut(QKeySequence::Find);
+    addAction(findAction);
+    connect(findAction, &QAction::triggered, tools, &DocumentTools::find);
+    auto *printAction = new QAction(QStringLiteral("Tisk…"), this);
+    printAction->setShortcut(QKeySequence::Print);
+    addAction(printAction);
+    connect(printAction, &QAction::triggered, tools, &DocumentTools::print);
+    auto *fileMenu = menuBar()->addMenu(QStringLiteral("Soubor"));
+    fileMenu->addAction(bar->actions().first());
+    auto *imagesAction = fileMenu->addAction(QStringLiteral("PDF z obrázků…"));
+    connect(imagesAction, &QAction::triggered, tools, &DocumentTools::imagesPdf);
+    fileMenu->addAction(exportAction);
+    fileMenu->addAction(printAction);
+    fileMenu->addAction(close);
+    menuBar()->addMenu(QStringLiteral("Úpravy"))->addAction(findAction);
     bar->addSeparator();
-    QList<QAction *> documentActions{close, exportAction};
+    QList<QAction *> documentActions{close, exportAction, findAction, printAction};
     documentActions << action(QStringLiteral("|◀"), QKeySequence(Qt::CTRL | Qt::Key_Home),
                               [this] { view->goToPage(0); });
     documentActions << action(QStringLiteral("◀"), QKeySequence(Qt::Key_PageUp),
@@ -186,8 +205,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
                 "zpětné inženýrství pro ladění změn LGPL knihoven je dovoleno.</p>"
                 "<p>Text: výběr tažením a Ctrl+C. Výřez: obdélník do schránky nebo PNG/JPG. "
                 "Výběr je omezen na jednu stránku, bez OCR.</p>"
-                "<p>Otočení je zatím pouze pro zobrazení. Uložení PDF, tisk a dávkové "
-                "exporty budou v dalších milnících.</p>")
+                "<p>Ctrl+F: hledání textu. Ctrl+P: tisk. Soubor → PDF z obrázků: "
+                "nové PDF ze sady obrázků. Otočení mění pouze zobrazení.</p>")
                 .arg(QCoreApplication::applicationVersion(), QString::fromLatin1(qVersion())));
         box.exec();
     });
@@ -337,6 +356,7 @@ void MainWindow::endAreaOperation() {
     }
 }
 MainWindow::~MainWindow() {
+    delete tools;
     exportProcess.disconnect(this);
     if (exportProcess.state() != QProcess::NotRunning) {
         exportProcess.kill();

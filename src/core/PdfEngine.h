@@ -43,6 +43,9 @@ class PdfEngine {
     virtual PageInfo pageInfo(int page) = 0;
     virtual QImage render(const RenderRequest &, const std::function<bool()> &cancelled) = 0;
     virtual TextPage text(int page) = 0;
+    virtual int printDpi() {
+        return 0;
+    }
     // Image extraction is intentionally capability-gated until milestone 3.
     virtual bool supportsImageExtraction() const {
         return false;

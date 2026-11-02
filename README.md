@@ -1,10 +1,10 @@
-# Airlet PDF 0.3.0
+# Airlet PDF 0.4.0
 
 Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Žádné účty, cloud, síťové požadavky, telemetrie ani proces po zavření.
 
-**Stav 0.3.0:** export celých stránek do PNG/JPG je implementovaný a ověřený Linux Release testy. Nový Windows build čeká na ruční spuštění. Verze 0.2.0 prošla Windows CI v běhu #3, včetně testů a instalátoru.
+**Stav 0.4.0:** hledání textu, tisk a nové PDF ze sady obrázků. Linux Release testy prošly; nové Windows sestavení vyžaduje ruční workflow. [Ovládání a omezení](docs/DOCUMENT-TOOLS.md).
 
-[Instalační balíček 0.2.0](https://github.com/zafodtom/airlet-pdf/actions/runs/41479675732/artifacts/13159656695) je poslední hotové Windows sestavení. Export celých stránek je až ve 0.3.0. [Export a jeho ověření](docs/EXPORT.md).
+Poslední ověřená Windows verze je [0.3.0 – instalátor a portable](https://github.com/zafodtom/airlet-pdf/actions/runs/41484128834/artifacts/13160757996). Prošla kompilací, testy i balením v běhu #6 a uživatelským testem exportu. Artefakty se uchovávají 3 dny.
 
 ## Implementováno
 
@@ -20,15 +20,16 @@ Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++2
 - Režim **Výřez**: obdélník do schránky přes Ctrl+C nebo do PNG/JPG přes kontextové menu. Průběh, zrušení, atomické uložení a ochrana zdrojového PDF.
 - Textový i obrazový výběr je v této iteraci omezen na jednu stránku. Přetrvá při zoomu/otočení; Escape jej zruší. Výběr je dočasný a dokument nemění.
 - Export… / Ctrl+E: aktuální, všechny nebo vlastní rozsah stran do PNG/JPG, DPI a kvalita JPG, průběh a zrušení. Samostatný proces chrání odezvu prohlížeče.
+- Ctrl+F: vyhledání textu bez rozlišení velikosti písmen, zvýraznění aktuálního nálezu, další/předchozí, zrušení. Samostatný proces se spustí až po zadání dotazu, bez OCR.
+- Ctrl+P: systémový tiskový dialog, aktuální/vše/vlastní rozsah, přizpůsobení do tisknutelné oblasti bez ořezu, průběh a zrušení.
+- Soubor → PDF z obrázků: PNG/JPG/BMP, pořadí tažením nebo tlačítky, A4 na výšku/šířku či velikost podle obrázku a DPI. Nový soubor se dokončí atomicky bez přepisu.
 - CMake, syntetické regresní testy, Windows build/deploy skript, Inno Setup, ruční Actions.
 
-**Otočení se nyní neukládá do PDF.** Extrakce samostatných vložených obrázků, tisk, export TXT/PDF, extrakce obrázků a skládání PDF zbývají. Výřez kopíruje vzhled vybrané oblasti, nikoliv původní vložený obrázek. [Plán](docs/BACKLOG.md).
+**Otočení mění pouze zobrazení a vzhled exportu/tisku.** Výřez a PNG/JPG export kopírují vykreslený vzhled, nikoli původní obrazový stream. Benchmark, panel navigace, úpravy pořadí/mazání/otáčení PDF stran, samostatná extrakce vložených obrázků a historie dokumentů nyní nejsou v rozsahu. [Dohodnutý rozsah](docs/BACKLOG.md).
 
 ## Sestavení a instalace
 
-Poslední hotový instalační balíček **0.1.0** z úspěšného běhu #2: [AirletPDF-0.1.0-x64](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974), přístupný přihlášenému vlastníkovi do 5. 11. 2026. ZIP obsahuje instalátor a přenosný ZIP; další spuštění workflow vytvoří nový balíček.
-
-Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.3.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
+Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.4.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
 
 ```powershell
 # V Developer PowerShell for VS 2022, po přípravě závislostí:
@@ -41,6 +42,9 @@ Soukromý repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-
 
 | Akce | Ovládání |
 |---|---|
+| Hledat text | Ctrl+F (Enter: další nález, Escape: zavřít hledání) |
+| Tisk | Ctrl+P |
+| PDF z obrázků | Soubor → PDF z obrázků… |
 | Otevřít / zavřít dokument | Ctrl+O / Ctrl+W |
 | Předchozí / další stránka | PageUp / PageDown |
 | První / poslední | Ctrl+Home / Ctrl+End |

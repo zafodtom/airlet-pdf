@@ -92,6 +92,7 @@ void PdfView::openFile(const QString &p, const QString &password) {
 }
 void PdfView::closeDocument() {
     clearSelection();
+    clearSearchHit();
     cancelSelectionImage();
     textCache.clear();
     password.clear();
@@ -328,6 +329,27 @@ void PdfView::acceptResult(quint64 s, quint64 g, RenderRequest r, PageInfo info,
         sharp.put(r.key, image);
     viewport()->update(); // paint never submits work
 }
+void PdfView::clearSearchHit() {
+    searchPage = -1;
+    searchBounds.clear();
+    viewport()->update();
+}
+void PdfView::showSearchHit(int p, QVector<QRectF> bounds, QSizeF points) {
+    if (p < 0 || p >= pages.size() || bounds.isEmpty())
+        return;
+    if (points.isValid() && sizes[p] != points) {
+        sizes[p] = points;
+        rebuildLayout();
+    }
+    searchPage = p;
+    searchBounds = std::move(bounds);
+    goToPage(p);
+    const auto rect = rotateRect(searchBounds.first(), sizes[p], rotations[p]);
+    const auto point = rect.center() * logicalScale() + pages[p].topLeft();
+    verticalScrollBar()->setValue(qRound(point.y() - viewport()->height() / 2.));
+    horizontalScrollBar()->setValue(qRound(point.x() - viewport()->width() / 2.));
+    viewport()->update();
+}
 void PdfView::paintEvent(QPaintEvent *) {
     QPainter painter(viewport());
     painter.fillRect(viewport()->rect(), QColor(66, 69, 73));
@@ -371,6 +393,16 @@ void PdfView::paintEvent(QPaintEvent *) {
     if (firstPending && paintedImage) {
         firstPending = false;
         emit firstImage(openingTimer.elapsed());
+    }
+    if (searchPage >= 0 && searchPage < pages.size()) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(255, 165, 0, 135));
+        for (const auto &bounds : searchBounds) {
+            const auto rect = rotateRect(bounds, sizes[searchPage], rotations[searchPage]);
+            painter.drawRect(
+                QRectF(rect.topLeft() * logicalScale() + pages[searchPage].topLeft() - offset,
+                       rect.size() * logicalScale()));
+        }
     }
     if (selectionPage >= 0 && selectionPage < pages.size()) {
         painter.setPen(QPen(QColor(25, 110, 220), 1));
