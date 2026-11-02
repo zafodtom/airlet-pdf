@@ -1,10 +1,13 @@
 #include "core/Geometry.h"
 #include "core/PdfEngine.h"
+#include "core/Selection.h"
+#include "export/ImageSaveJob.h"
 #include "render/RenderService.h"
 #include "render/TileCache.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
 #include <QApplication>
+#include <QClipboard>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
@@ -13,6 +16,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QWheelEvent>
 #include <QtTest>
 #include <atomic>
 #include <chrono>
@@ -22,6 +26,18 @@
 using namespace airlet;
 static QString fixture(const char *name) {
     return QString::fromUtf8(FIXTURE_DIR) + "/" + name;
+}
+static void wheel(PdfView &view, int angle, QPoint pixels = {},
+                  Qt::KeyboardModifiers modifiers = {}) {
+    const auto local = view.viewport()->rect().center();
+    QWheelEvent event(local, view.viewport()->mapToGlobal(local), pixels, QPoint(0, angle),
+                      Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(view.viewport(), &event);
+}
+static void dragSelection(PdfView &view, QPointF first, QPointF last) {
+    QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, first.toPoint());
+    QTest::mouseMove(view.viewport(), last.toPoint());
+    QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, last.toPoint());
 }
 struct SlowState {
     std::atomic<int> started{0}, cancelled{0};
@@ -62,6 +78,7 @@ class TestAirlet final : public QObject {
         qRegisterMetaType<OpenResult>();
         qRegisterMetaType<RenderRequest>();
         qRegisterMetaType<PageInfo>();
+        qRegisterMetaType<TextPage>();
     }
     void coordinates_data() {
         QTest::addColumn<int>("rotation");
@@ -274,6 +291,258 @@ class TestAirlet final : public QObject {
         idle.exec();
         QCOMPARE(window.pdfView()->jobsStarted(), jobs);
         window.close();
+    }
+    void wheelPagesAndContinuousScroll() {
+        PdfView view;
+        view.resize(900, 650);
+        view.show();
+        view.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE(view.pageCount(), 3);
+        view.fitPage();
+        view.goToPage(0);
+        wheel(view, -60);
+        QCOMPARE(view.currentPage(), 0);
+        wheel(view, -60);
+        QCOMPARE(view.currentPage(), 1);
+        wheel(view, -120);
+        QCOMPARE(view.currentPage(), 2);
+        wheel(view, -120);
+        QCOMPARE(view.currentPage(), 2);
+        wheel(view, 240);
+        QCOMPARE(view.currentPage(), 0);
+        const auto before = view.zoom();
+        wheel(view, 120, {}, Qt::ControlModifier);
+        QVERIFY(view.zoom() > before);
+        view.fitWidth();
+        view.goToPage(0);
+        const int previousLines = QApplication::wheelScrollLines();
+        QApplication::setWheelScrollLines(3);
+        wheel(view, -120);
+        QVERIFY(view.verticalScrollBar()->value() >= 90);
+        view.goToPage(0);
+        wheel(view, 0, QPoint(0, -27));
+        QCOMPARE(view.verticalScrollBar()->value(), 27);
+        QApplication::setWheelScrollLines(previousLines);
+    }
+    void wholePageWheelFitsMixedSizes() {
+        PdfView view;
+        view.resize(900, 650);
+        view.show();
+        view.openFile(fixture("mixed-pages.pdf"));
+        QTRY_COMPARE(view.pageCount(), 3);
+        view.fitPage();
+        wheel(view, -120);
+        QTRY_COMPARE(view.currentPage(), 1);
+        const auto expected = std::min((view.viewport()->width() - 32.) / (600. * 96. / 72.),
+                                       (view.viewport()->height() - 32.) / (300. * 96. / 72.));
+        QTRY_VERIFY_WITH_TIMEOUT(std::abs(view.zoom() - expected) < .001, 5000);
+        wheel(view, -120);
+        QTRY_COMPARE(view.currentPage(), 2);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            std::abs(view.zoom() -
+                     std::min((view.viewport()->width() - 32.) / (200. * 96. / 72.),
+                              (view.viewport()->height() - 32.) / (1000. * 96. / 72.))) < .001,
+            5000);
+    }
+    void czechMultilineText() {
+        auto engine = makePdfiumEngine();
+        QCOMPARE(engine->open(fixture("czech-text.pdf"), {}).error, OpenError::None);
+        const auto text = engine->text(0);
+        QVERIFY(!text.glyphs.isEmpty());
+        QCOMPARE(airlet::selectedText(text, 0, text.glyphs.size() - 1),
+                 QString::fromUtf8("Příliš žluťoučký kůň\nÚpěl ďábelské ódy."));
+    }
+    void mainWindowCropClipboard() {
+        MainWindow window;
+        window.resize(1050, 800);
+        window.show();
+        window.openFile(fixture("basic.pdf"));
+        auto &view = *window.pdfView();
+        QTRY_COMPARE(view.pageCount(), 3);
+        view.setZoom(.75);
+        view.goToPage(0);
+        view.setSelectionMode(PdfView::SelectionMode::Area);
+        dragSelection(view, view.pageToViewport(0, QPointF(80, 100)),
+                      view.pageToViewport(0, QPointF(150, 170)));
+        QApplication::clipboard()->clear();
+        QTest::keyClick(&view, Qt::Key_C, Qt::ControlModifier);
+        QTRY_VERIFY_WITH_TIMEOUT(!QApplication::clipboard()->image().isNull(), 5000);
+        QCOMPARE(QApplication::clipboard()->image().size(), QSize(140, 140));
+        window.close();
+    }
+    void selectionGeometryAndText_data() {
+        QTest::addColumn<int>("rotation");
+        QTest::addColumn<double>("zoom");
+        QTest::addColumn<QString>("document");
+        QTest::addColumn<QString>("expectedText");
+        for (int r = 0; r < 4; ++r)
+            for (double z : {.75, 1.5})
+                for (bool cropped : {false, true})
+                    QTest::newRow(
+                        qPrintable(QStringLiteral("r%1-z%2-crop%3").arg(r).arg(z).arg(cropped)))
+                        << r << z << QString(cropped ? "cropped-rotated.pdf" : "basic.pdf")
+                        << QString(cropped ? "Crop text" : "Airlet test 1");
+    }
+    void selectionGeometryAndText() {
+        QFETCH(int, rotation);
+        QFETCH(double, zoom);
+        QFETCH(QString, document);
+        QFETCH(QString, expectedText);
+        auto engine = makePdfiumEngine();
+        const auto opened = engine->open(fixture(qPrintable(document)), {});
+        const auto text = engine->text(0);
+        QVERIFY(!text.glyphs.isEmpty());
+        PdfView view;
+        view.resize(900, 650);
+        view.show();
+        view.openFile(fixture(qPrintable(document)));
+        QTRY_COMPARE(view.pageCount(), opened.pages);
+        view.setZoom(zoom);
+        view.rotate(rotation);
+        view.goToPage(0);
+        const auto first = text.glyphs.front().bounds.center();
+        const auto last = text.glyphs.back().bounds.center();
+        for (const auto point :
+             {first, last,
+              QPointF(opened.first.points.width() * .17, opened.first.points.height() * .47)}) {
+            const auto back = view.viewportToPage(0, view.pageToViewport(0, point));
+            QVERIFY(QLineF(back, point).length() < 1e-6);
+        }
+        dragSelection(view, view.pageToViewport(0, first), view.pageToViewport(0, last));
+        QTRY_COMPARE_WITH_TIMEOUT(view.selectedText(), expectedText, 5000);
+        const auto output = qEnvironmentVariable("AIRLET_TEST_OUTPUT");
+        if (!output.isEmpty() && document == "basic.pdf" && rotation == 0 && zoom == .75)
+            view.grab().save(output + "/text-selection.png");
+        QApplication::clipboard()->clear();
+        QTest::keyClick(&view, Qt::Key_C, Qt::ControlModifier);
+        QCOMPARE(QApplication::clipboard()->text(), expectedText);
+        dragSelection(view, view.pageToViewport(0, last), view.pageToViewport(0, first));
+        QTRY_COMPARE_WITH_TIMEOUT(view.selectedText(), expectedText, 5000);
+        const auto selected = view.selectedText();
+        view.setZoom(zoom * 1.1);
+        view.rotate(1);
+        QCOMPARE(view.selectedText(), selected);
+        view.closeDocument();
+        QCOMPARE(view.selectedText(), QString());
+    }
+    void cropRotations_data() {
+        QTest::addColumn<int>("rotation");
+        for (int r = 0; r < 4; ++r)
+            QTest::newRow(qPrintable(QString::number(r))) << r;
+    }
+    void cropRotations() {
+        QFETCH(int, rotation);
+        PdfView view;
+        view.resize(900, 650);
+        view.show();
+        view.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE(view.pageCount(), 3);
+        view.setZoom(.75);
+        view.rotate(rotation);
+        view.goToPage(0);
+        view.setSelectionMode(PdfView::SelectionMode::Area);
+        dragSelection(view, view.pageToViewport(0, QPointF(80, 100)),
+                      view.pageToViewport(0, QPointF(220, 290)));
+        QVERIFY(view.hasAreaSelection());
+        QSignalSpy ready(&view, &PdfView::selectionImageReady);
+        const auto id = view.requestSelectionImage();
+        QVERIFY(id > 0);
+        QTRY_COMPARE_WITH_TIMEOUT(ready.size(), 1, 5000);
+        QCOMPARE(ready[0][0].toULongLong(), id);
+        QVERIFY(ready[0][2].toString().isEmpty());
+        const auto image = qvariant_cast<QImage>(ready[0][1]);
+        QVERIFY(!image.isNull());
+        const auto expected = rotatedSize(QSizeF(280, 380), rotation).toSize();
+        QVERIFY(std::abs(image.width() - expected.width()) <= 3);
+        QVERIFY(std::abs(image.height() - expected.height()) <= 3);
+        QVERIFY(image.pixelColor(10, 10).blue() > 180);
+        QVERIFY(image.pixelColor(10, 10).red() < 70);
+        const auto output = qEnvironmentVariable("AIRLET_TEST_OUTPUT");
+        if (!output.isEmpty()) {
+            view.grab().save(output + QStringLiteral("/selection-r%1.png").arg(rotation));
+            image.save(output + QStringLiteral("/crop-r%1.png").arg(rotation));
+        }
+    }
+    void lazyTextAndCropService() {
+        RenderService service;
+        QSignalSpy opened(&service, &RenderService::opened),
+            texts(&service, &RenderService::textReady), areas(&service, &RenderService::areaReady);
+        service.open(1, fixture("basic.pdf"));
+        QTRY_COMPARE(opened.size(), 1);
+        QCOMPARE(service.jobsStarted(), quint64(0)); // no automatic text scan
+        service.requestText(1, 0, 1);
+        QTRY_COMPARE(texts.size(), 1);
+        const auto text = qvariant_cast<TextPage>(texts[0][3]);
+        QVERIFY(!text.glyphs.isEmpty());
+        RenderRequest r{0, 0, QSize(600, 800), QRect(100, 100, 450, 600), false, {}};
+        service.requestArea(1, 2, r);
+        QTRY_COMPARE_WITH_TIMEOUT(areas.size(), 1, 5000);
+        auto engine = makePdfiumEngine();
+        engine->open(fixture("basic.pdf"), {});
+        QCOMPARE(qvariant_cast<QImage>(areas[0][2]), engine->render(r, [] { return false; }));
+        const auto jobs = service.jobsStarted();
+        QEventLoop idle;
+        QTimer::singleShot(150, &idle, &QEventLoop::quit);
+        idle.exec();
+        QCOMPARE(service.jobsStarted(), jobs);
+    }
+    void cancelAreaOnDocumentChange() {
+        auto state = std::make_shared<SlowState>();
+        RenderService service(nullptr, [state] { return std::make_unique<SlowEngine>(state); });
+        QSignalSpy opened(&service, &RenderService::opened),
+            areas(&service, &RenderService::areaReady);
+        service.open(1, "one");
+        QTRY_COMPARE(opened.size(), 1);
+        service.requestArea(1, 1, {0, 0, QSize(300, 400), QRect(0, 0, 300, 400), false, {}});
+        QTRY_COMPARE(state->started.load(), 1);
+        service.open(2, "two");
+        QTRY_COMPARE(opened.size(), 2);
+        QCOMPARE(state->cancelled.load(), 1);
+        QCOMPARE(areas.size(), 0);
+    }
+    void imageSaveAtomicAndOriginalProtection() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto source = dir.filePath("source.pdf");
+        QVERIFY(QFile::copy(fixture("basic.pdf"), source));
+        QFile original(source);
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        const auto bytes = original.readAll();
+        original.close();
+        QImage image(120, 90, QImage::Format_ARGB32);
+        image.fill(Qt::blue);
+        ImageSaveJob job;
+        QSignalSpy finished(&job, &ImageSaveJob::finished);
+        const auto png = dir.filePath("crop.png");
+        QVERIFY(job.start(image, png, "PNG", source, false, 1));
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished[0][1].toBool());
+        QCOMPARE(QImage(png).convertToFormat(QImage::Format_ARGB32), image);
+        QVERIFY(job.start(image, source, "PNG", source, true, 2));
+        QTRY_COMPARE(finished.size(), 2);
+        QVERIFY(!finished[1][1].toBool());
+        QFile check(source);
+        QVERIFY(check.open(QIODevice::ReadOnly));
+        QCOMPARE(check.readAll(), bytes);
+        QImage changed = image;
+        changed.fill(Qt::red);
+        QVERIFY(job.start(changed, png, "PNG", source, false, 3));
+        QTRY_COMPARE(finished.size(), 3);
+        QVERIFY(!finished[2][1].toBool());
+        QCOMPARE(QImage(png).pixelColor(5, 5), QColor(Qt::blue));
+        const auto jpg = dir.filePath("crop.jpg");
+        QVERIFY(job.start(image, jpg, "JPG", source, false, 4));
+        QTRY_COMPARE(finished.size(), 4);
+        QVERIFY(finished[3][1].toBool());
+        QCOMPARE(QImage(jpg).size(), image.size());
+        const auto cancelled = dir.filePath("cancelled.png");
+        QImage large(4096, 4096, QImage::Format_ARGB32);
+        large.fill(Qt::green);
+        QVERIFY(job.start(large, cancelled, "PNG", source, false, 5));
+        job.cancel();
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 5, 5000);
+        QVERIFY(finished[4][2].toBool());
+        QVERIFY(!QFile::exists(cancelled));
     }
 };
 QTEST_MAIN(TestAirlet)

@@ -7,7 +7,7 @@
 [Setup]
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
-AppVersion=0.1.0
+AppVersion=0.2.0
 AppPublisher=Airlet PDF
 DefaultDirName={localappdata}\Programs\Airlet PDF
 DefaultGroupName=Airlet PDF
@@ -16,7 +16,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=AirletPDF-Setup-0.1.0-x64
+OutputBaseFilename=AirletPDF-Setup-0.2.0-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -31,6 +31,13 @@ Name: "desktopicon"; Description: "Vytvořit zástupce na ploše"; Flags: unchec
 Name: "pdfcandidate"; Description: "Nabídnout Airlet PDF jako aplikaci pro PDF (výchozí aplikaci zvolíte v nastavení Windows)"; Flags: unchecked
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+[InstallDelete]
+; Remove only the unused network/touch files shipped by 0.1.0 on upgrades.
+Type: files; Name: "{app}\generic\qtuiotouchplugin.dll"
+Type: files; Name: "{app}\networkinformation\qnetworklistmanager.dll"
+Type: files; Name: "{app}\tls\qcertonlybackend.dll"
+Type: files; Name: "{app}\tls\qschannelbackend.dll"
+Type: files; Name: "{app}\Qt6Network.dll"
 [Icons]
 Name: "{group}\Airlet PDF"; Filename: "{app}\AirletPDF.exe"
 Name: "{autodesktop}\Airlet PDF"; Filename: "{app}\AirletPDF.exe"; Tasks: desktopicon

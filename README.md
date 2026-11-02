@@ -1,8 +1,10 @@
-# Airlet PDF 0.1.0
+# Airlet PDF 0.2.0
 
 Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++20, Qt Widgets a vyměnitelné PDF jádro. Žádné účty, cloud, síťové požadavky, telemetrie ani proces po zavření.
 
-**Stav:** první Windows Release sestavení je připravené k praktickému vyzkoušení. [CI běh #2](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485) úspěšně zkompiloval aplikaci, spustil automatické testy a vytvořil instalátor i přenosný ZIP. Interaktivní GUI, čistá instalace a výkon na cílovém PC ještě čekají na ověření; viz [výsledky](docs/VALIDATION.md).
+**Stav 0.2.0:** další iterace obsahuje upravené rolování, výběr textu a obdélníkový výřez. Linux Release testy prošly; Windows build nové verze je připraven k ručnímu spuštění. [Ověření 0.2.0](docs/VALIDATION-0.2.0.md).
+
+Předchozí 0.1.0 úspěšně prošla Windows CI i uživatelskou instalací. Uživatel potvrdil velmi rychlou odezvu; nejde o číselné měření. [Záznam původní verze](docs/VALIDATION.md).
 
 ## Implementováno
 
@@ -13,16 +15,19 @@ Minimalistický lokální PDF prohlížeč pro Windows 10 (1809+) / 11 x64. C++2
 - Jeden worker, progresivní rušení PDFium, generace a session, 512px dlaždice, omezená cache, nízké rozlišení během zoomu, přednačtení jediné sousední stránky.
 - Rozměry stran zjišťované při návštěvě, bez počátečního průchodu celým PDF.
 - Paměť velikosti okna a poslední úspěšně otevřené složky.
-- Rozhraní jádra a interní získání textu/geometrie; UI výběru přijde v dalším milníku.
+- V režimu celá stránka jeden zářez kolečka přejde o jednu stránku, včetně různých formátů stran. V ostatních režimech větší krok myši, pixelový posun touchpadu zachován.
+- Režim **Text**: skutečná textová vrstva, výběr tažením a Ctrl+C; diakritika a zalomení řádků, bez OCR. Data se načtou až při prvním výběru.
+- Režim **Výřez**: obdélník do schránky přes Ctrl+C nebo do PNG/JPG přes kontextové menu. Průběh, zrušení, atomické uložení a ochrana zdrojového PDF.
+- Textový i obrazový výběr je v této iteraci omezen na jednu stránku. Přetrvá při zoomu/otočení; Escape jej zruší. Výběr je dočasný a dokument nemění.
 - CMake, syntetické regresní testy, Windows build/deploy skript, Inno Setup, ruční Actions.
 
-**Otočení se nyní neukládá.** Výběr textu/obrázků, výřez, tisk, export a skládání PDF ještě nejsou součástí uživatelského rozhraní. [Plán](docs/BACKLOG.md).
+**Otočení se nyní neukládá do PDF.** Extrakce samostatných vložených obrázků, tisk, dávkové exporty a skládání PDF zbývají. Výřez kopíruje vzhled vybrané oblasti, nikoliv původní vložený obrázek. [Plán](docs/BACKLOG.md).
 
 ## Sestavení a instalace
 
-Balíček z úspěšného běhu #2: [AirletPDF-0.1.0-x64](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974), přístupný přihlášenému vlastníkovi do 5. 11. 2026. ZIP obsahuje instalátor a přenosný ZIP; další spuštění workflow vytvoří nový balíček.
+Poslední hotový instalační balíček **0.1.0** z úspěšného běhu #2: [AirletPDF-0.1.0-x64](https://github.com/zafodtom/airlet-pdf/actions/runs/41471603485/artifacts/13154494974), přístupný přihlášenému vlastníkovi do 5. 11. 2026. ZIP obsahuje instalátor a přenosný ZIP; další spuštění workflow vytvoří nový balíček.
 
-Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.1.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
+Viz [docs/BUILD.md](docs/BUILD.md). Ruční Windows workflow vytvoří `AirletPDF-Setup-0.2.0-x64.exe`, přenosný ZIP a odpovídající zdroje Qt. Instalátor nabídne pouze volitelnou registraci aplikace mezi kandidáty pro PDF; výchozí aplikaci nemění.
 
 ```powershell
 # V Developer PowerShell for VS 2022, po přípravě závislostí:
@@ -42,6 +47,10 @@ Soukromý repozitář: [zafodtom/airlet-pdf](https://github.com/zafodtom/airlet-
 | 100 % / šířka / celá stránka | Ctrl+0 / Ctrl+1 / Ctrl+2 |
 | Otočit doprava / doleva | Ctrl+R / Ctrl+Shift+R |
 | Posun | Kolečko, posuvníky, prostřední tlačítko |
+| Výběr textu / výřezu | Tlačítka Text / Výřez nebo Alt+T / Alt+X |
+| Kopírovat vybraný text / obrázek | Ctrl+C |
+| Uložit výřez | Pravé tlačítko → Uložit výřez… |
+| Zrušit výběr | Escape |
 
 ## Architektura a licence
 

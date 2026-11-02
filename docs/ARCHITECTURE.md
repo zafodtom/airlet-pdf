@@ -2,7 +2,7 @@
 
 `MainWindow → PdfView → RenderService → PdfEngine ← PdfiumEngine`
 
-UI vlastní pouze metadata, rozvržení a QImage cache. `PdfEngine` používá Qt hodnotové typy, nikoli PDFium handle. Další jádro změní továrnu, nikoliv viewer. Žádný plugin framework.
+UI vlastní metadata, rozvržení, QImage cache a dočasný výběr v PDF souřadnicích. `PdfEngine` používá Qt hodnotové typy, nikoli PDFium handle. Další jádro změní továrnu, nikoliv viewer. Žádný plugin framework.
 
 ## Vlastnictví a souběh
 
@@ -30,4 +30,14 @@ Rozměry neznámých stran se odhadnou podle první stránky, pak se opraví př
 
 ## Omezení M1
 
-Statické anotace se vykreslují; interaktivní formuláře/XFA/JavaScript nejsou podporované. Výběr textu není v UI a správnost jeho souřadnic ve všech kombinacích bude nutné znovu ověřit při jeho zapojení. Počáteční cíl je rychlé prohlížení běžných PDF, skenů a technických výkresů.
+Statické anotace se vykreslují; interaktivní formuláře/XFA/JavaScript nejsou podporované. Počáteční cíl je rychlé prohlížení běžných PDF, skenů a technických výkresů. Ve 0.2.0 je dočasný výběr textu a obdélníku na jedné stránce; není to anotace a nemění PDF.
+
+## Výběr a výřez (0.2.0)
+
+Text se načítá na workeru pouze po zahájení výběru, nikdy při běžném otevření/renderu. Cache drží nejvýše čtyři vyžádané stránky, aktivní výběr sdílí jejich data. Zpětný výsledek se kontroluje podle session i ID požadavku. Vektory glyph bounds jsou v neotočených crop-relative bodech; Geometry a Selection zajišťují převody do viewportu a hit-test. Při kopírování se zachová pořadí znaků PDFium a normalizují konce řádků. Respektuje se oprávnění pro kopírování textu. OCR není přítomné.
+
+Výřez používá vlastní ID a document epoch, nezávislé na generaci běžného renderu. Standardní rozlišení je 144 dpi, automaticky omezené na 16 megapixelů a 8192 px na delší straně. Při skládání po 512px dlaždicích dostávají viditelné stránky přednost mezi jednotlivými dlaždicemi. Výsledný QImage obsahuje odpovídající DPI metadata. Schránka se mění jen v GUI vlákně po explicitním Ctrl+C.
+
+PNG/JPG kódování a zápis má samostatný ImageSaveJob bez PDFium volání. Jthread se vytvoří až na vyžádání. QSaveFile bez direct-write fallback dokončí soubor atomicky; při zrušení nebo chybě se dočasný výstup nedokončí. Před přepsáním se vyžaduje souhlas pro konkrétní obrázek. PDF přípona i shoda cíle s původním PDF se odmítnou. Zrušení se ověří před dokončením; samotné Qt kódování nemusí jít přerušit uprostřed. Aplikace při ukončení připojí všechna vlastní vlákna.
+
+Žádná část výběru nezavádí periodickou práci v klidu. Progress dialog existuje pouze během explicitní operace. Celá stránka používá krok kolečka 120 úhlových jednotek; běžný režim má viewportem odvozený singleStep bez animace. Pixelová data touchpadu se posouvají přímo.

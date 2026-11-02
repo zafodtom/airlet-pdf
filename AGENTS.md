@@ -11,7 +11,9 @@
 - Novou interakci nebo změnu layoutu doprovodit správnou invalidací. Pozor na zoom, crop, vlastní i vestavěné otočení a HiDPI.
 - Neinstalovat LibreOffice; OCR a kancelářské převody mimo rozsah.
 - Převody musí mít zrušení, průběh a atomické dokončení bez přepisu originálů.
-- Prázdná nebo nefunkční tlačítka do UI nepřidávat. Výběr, ukládání, tisk a export nyní v backlogu.
+- Prázdná nebo nefunkční tlačítka do UI nepřidávat. Výběr textu a výřez jsou ve 0.2.0; ukládání PDF, tisk a dávkové exporty zbývají.
+- Text načítat pouze na vyžádání, ne při otevření či běžném renderu. Výběr uchovávat v PDF bodech, nikoli viewport pixelech.
+- Výřez skládat po dlaždicích s předností běžného prohlížení. PNG/JPG kódovat mimo GUI i PDFium worker, atomicky přes QSaveFile, chránit původní PDF.
 - Release závislosti připnout a ověřit hashem; zachovat licence i odpovídající zdroje Qt při distribuci.
 - Testy spustit `ctest --test-dir build --output-on-failure -C Release`.
 - Testovat pouze syntetické dokumenty. Výkon Windows označovat jako změřený pouze při skutečném Windows běhu.

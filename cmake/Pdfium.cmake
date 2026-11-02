@@ -17,6 +17,9 @@ if(NOT PDFIUM_ROOT)
   FetchContent_MakeAvailable(pdfium_archive)
   set(PDFIUM_ROOT "${pdfium_archive_SOURCE_DIR}")
 endif()
+# PowerShell supplies native backslashes. CMake-generated install scripts need
+# forward slashes so paths such as D:\a do not become escape sequences.
+file(TO_CMAKE_PATH "${PDFIUM_ROOT}" PDFIUM_ROOT)
 add_library(pdfium SHARED IMPORTED GLOBAL)
 set_target_properties(pdfium PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${PDFIUM_ROOT}/include")
 if(WIN32)

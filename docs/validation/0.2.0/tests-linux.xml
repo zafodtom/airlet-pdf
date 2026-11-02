@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite name="TestAirlet" timestamp="2026&#x002D;11&#x002D;02T11:11:08" hostname="dd1def445b73" tests="55" failures="0" errors="0" skipped="0" time="5.096">
+  <properties>
+    <property name="QTestVersion" value="6.4.2"/>
+    <property name="QtVersion" value="6.4.2"/>
+    <property name="QtBuild" value="Qt 6.4.2 (x86_64&#x002D;little_endian&#x002D;lp64 shared (dynamic) release build; by GCC 13.2.0)"/>
+  </properties>
+  <testcase name="initTestCase" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(&#x002D;4)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(&#x002D;3)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(&#x002D;2)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(&#x002D;1)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(0)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(1)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(2)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(3)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(4)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(5)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(6)" classname="TestAirlet" time="0.000"/>
+  <testcase name="coordinates(7)" classname="TestAirlet" time="0.000"/>
+  <testcase name="openUnicodeAndPassword" classname="TestAirlet" time="0.001"/>
+  <testcase name="tileMatchesFull(0)" classname="TestAirlet" time="0.002"/>
+  <testcase name="tileMatchesFull(1)" classname="TestAirlet" time="0.002"/>
+  <testcase name="tileMatchesFull(2)" classname="TestAirlet" time="0.002"/>
+  <testcase name="tileMatchesFull(3)" classname="TestAirlet" time="0.002"/>
+  <testcase name="cancelAndBounds" classname="TestAirlet" time="0.000"/>
+  <testcase name="cropIntrinsicRotationAndText" classname="TestAirlet" time="0.002"/>
+  <testcase name="scannedHasNoText" classname="TestAirlet" time="0.001"/>
+  <testcase name="cacheBound" classname="TestAirlet" time="0.021"/>
+  <testcase name="serviceReplacementAndIdle" classname="TestAirlet" time="0.503"/>
+  <testcase name="cancelInFlightAndJoin" classname="TestAirlet" time="0.304"/>
+  <testcase name="viewZoomScrollCloseAndIdle" classname="TestAirlet" time="0.744">
+    <system-out>
+      <![CDATA[idle_process_cpu_ms_over_500ms=0.110]]>
+    </system-out>
+  </testcase>
+  <testcase name="mainWindowSmoke" classname="TestAirlet" time="0.087">
+    <system-err>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+    </system-err>
+  </testcase>
+  <testcase name="landscapeFitDoesNotOscillate" classname="TestAirlet" time="0.258">
+    <system-err>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+    </system-err>
+  </testcase>
+  <testcase name="wheelPagesAndContinuousScroll" classname="TestAirlet" time="0.053"/>
+  <testcase name="wholePageWheelFitsMixedSizes" classname="TestAirlet" time="0.106"/>
+  <testcase name="czechMultilineText" classname="TestAirlet" time="0.002"/>
+  <testcase name="mainWindowCropClipboard" classname="TestAirlet" time="0.112">
+    <system-err>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+      <![CDATA[This plugin does not support propagateSizeHints()]]>
+    </system-err>
+  </testcase>
+  <testcase name="selectionGeometryAndText(r0&#x002D;z0.75&#x002D;crop0)" classname="TestAirlet" time="0.126"/>
+  <testcase name="selectionGeometryAndText(r0&#x002D;z0.75&#x002D;crop1)" classname="TestAirlet" time="0.056"/>
+  <testcase name="selectionGeometryAndText(r0&#x002D;z1.5&#x002D;crop0)" classname="TestAirlet" time="0.107"/>
+  <testcase name="selectionGeometryAndText(r0&#x002D;z1.5&#x002D;crop1)" classname="TestAirlet" time="0.108"/>
+  <testcase name="selectionGeometryAndText(r1&#x002D;z0.75&#x002D;crop0)" classname="TestAirlet" time="0.109"/>
+  <testcase name="selectionGeometryAndText(r1&#x002D;z0.75&#x002D;crop1)" classname="TestAirlet" time="0.107"/>
+  <testcase name="selectionGeometryAndText(r1&#x002D;z1.5&#x002D;crop0)" classname="TestAirlet" time="0.057"/>
+  <testcase name="selectionGeometryAndText(r1&#x002D;z1.5&#x002D;crop1)" classname="TestAirlet" time="0.106"/>
+  <testcase name="selectionGeometryAndText(r2&#x002D;z0.75&#x002D;crop0)" classname="TestAirlet" time="0.109"/>
+  <testcase name="selectionGeometryAndText(r2&#x002D;z0.75&#x002D;crop1)" classname="TestAirlet" time="0.105"/>
+  <testcase name="selectionGeometryAndText(r2&#x002D;z1.5&#x002D;crop0)" classname="TestAirlet" time="0.109"/>
+  <testcase name="selectionGeometryAndText(r2&#x002D;z1.5&#x002D;crop1)" classname="TestAirlet" time="0.106"/>
+  <testcase name="selectionGeometryAndText(r3&#x002D;z0.75&#x002D;crop0)" classname="TestAirlet" time="0.108"/>
+  <testcase name="selectionGeometryAndText(r3&#x002D;z0.75&#x002D;crop1)" classname="TestAirlet" time="0.106"/>
+  <testcase name="selectionGeometryAndText(r3&#x002D;z1.5&#x002D;crop0)" classname="TestAirlet" time="0.111"/>
+  <testcase name="selectionGeometryAndText(r3&#x002D;z1.5&#x002D;crop1)" classname="TestAirlet" time="0.107"/>
+  <testcase name="cropRotations(0)" classname="TestAirlet" time="0.129"/>
+  <testcase name="cropRotations(1)" classname="TestAirlet" time="0.135"/>
+  <testcase name="cropRotations(2)" classname="TestAirlet" time="0.129"/>
+  <testcase name="cropRotations(3)" classname="TestAirlet" time="0.132"/>
+  <testcase name="lazyTextAndCropService" classname="TestAirlet" time="0.303"/>
+  <testcase name="cancelAreaOnDocumentChange" classname="TestAirlet" time="0.152"/>
+  <testcase name="imageSaveAtomicAndOriginalProtection" classname="TestAirlet" time="0.275"/>
+  <testcase name="cleanupTestCase" classname="TestAirlet" time="0.000"/>
+</testsuite>

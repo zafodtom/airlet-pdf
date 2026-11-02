@@ -78,3 +78,7 @@ Oba kontrolní součty byly ověřeny proti přiloženému SHA256SUMS.txt, celý
 Zbývá praktická instalace a odinstalace na Windows 10/11, interaktivní GUI, studený/teplý start, dlouhodobá paměť, klidová CPU a skutečné HiDPI monitory na cílovém PC. Nejsou tvrzeny žádné Windows výkonové výsledky.
 
 CI balení má neblokující upozornění: zpětná lomítka PDFIUM_ROOT v generovaném install skriptu, chybějící volitelné DX shader DLL a metadata překladů. Všechny povinné soubory byly přesto přiloženy. windeployqt navíc přibalil QtNetwork kvůli generic touch pluginu; aplikace sama síťové API nepoužívá. Úklid balení je zaznamenán v backlogu pro příští build cyklus, bez dalšího CI běhu pouze kvůli upozorněním.
+
+## Uživatelské ověření 0.1.0
+
+Dne 2. 11. 2026 uživatel potvrdil funkční instalátor a aplikaci s velmi rychlou odezvou. Nebyl hlášen jiný problém než malý krok kolečka a požadavek na listování po stránkách v režimu celé stránky. Jde o subjektivní zprávu z používání; nebyly dodány měřené časy, CPU ani paměť. Tyto dvě úpravy rolování řeší 0.2.0.

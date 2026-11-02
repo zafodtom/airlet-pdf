@@ -2,12 +2,15 @@
 #include "render/RenderService.h"
 #include "render/TileCache.h"
 #include <QAbstractScrollArea>
+#include <QCache>
 #include <QElapsedTimer>
+#include <memory>
 
 namespace airlet {
 class PdfView final : public QAbstractScrollArea {
     Q_OBJECT
   public:
+    enum class SelectionMode { Text, Area };
     explicit PdfView(QWidget *parent = nullptr);
     void openFile(const QString &path, const QString &password = {});
     void closeDocument();
@@ -23,6 +26,17 @@ class PdfView final : public QAbstractScrollArea {
     void fitWidth();
     void fitPage();
     void rotate(int delta);
+    void setSelectionMode(SelectionMode mode);
+    SelectionMode selectionMode() const {
+        return mode;
+    }
+    void clearSelection();
+    QString selectedText() const;
+    bool hasAreaSelection() const;
+    quint64 requestSelectionImage();
+    void cancelSelectionImage();
+    QPointF pageToViewport(int page, QPointF point) const;
+    QPointF viewportToPage(int page, QPointF point) const;
     qint64 cachedBytes() const {
         return sharp.bytes() + previews.bytes();
     }
@@ -39,6 +53,10 @@ class PdfView final : public QAbstractScrollArea {
     void zoomChanged(double scale);
     void firstImage(qint64 openMs);
     void fileDropped(QString path);
+    void selectionChanged();
+    void selectionNotice(QString message);
+    void selectionImageReady(quint64 request, QImage image, QString error);
+    void selectionImageProgress(quint64 request, int percent);
 
   protected:
     void paintEvent(QPaintEvent *) override;
@@ -50,6 +68,7 @@ class PdfView final : public QAbstractScrollArea {
     void mouseReleaseEvent(QMouseEvent *) override;
     void dragEnterEvent(QDragEnterEvent *) override;
     void dropEvent(QDropEvent *) override;
+    void keyPressEvent(QKeyEvent *) override;
     bool event(QEvent *) override;
 
   private:
@@ -67,6 +86,18 @@ class PdfView final : public QAbstractScrollArea {
     QElapsedTimer openingTimer;
     bool firstPending = false, changingLayout = false, dragging = false, metadataPending = false;
     QPoint dragPosition;
+    int pageWheelRemainder = 0;
+    double pagePixelRemainder = 0;
+    SelectionMode mode = SelectionMode::Text;
+    int selectionPage = -1, firstGlyph = -1, lastGlyph = -1;
+    QPointF selectionStart, selectionEnd;
+    bool selecting = false;
+    QCache<int, TextPage> textCache{4};
+    std::shared_ptr<TextPage> activeText;
+    quint64 textRequest = 0, imageRequest = 0;
+    int pageAtPoint(QPointF viewportPoint) const;
+    void updateTextSelection();
+    QRectF areaBounds() const;
     int fitMode = 1; // 0 manual, 1 width, 2 page
     double documentWidth = 0;
     QRectF pageRect(int index) const;

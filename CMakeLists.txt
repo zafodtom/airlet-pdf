@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AirletPDF VERSION 0.1.0 LANGUAGES CXX)
+project(AirletPDF VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -11,6 +11,8 @@ endif()
 include(cmake/Pdfium.cmake)
 add_library(airlet_core STATIC
   src/core/Geometry.cpp src/core/Geometry.h src/core/PdfEngine.h
+  src/core/Selection.cpp src/core/Selection.h
+  src/export/ImageSaveJob.cpp src/export/ImageSaveJob.h
   src/pdfium/PdfiumEngine.cpp src/pdfium/PdfiumEngine.h
   src/render/RenderService.cpp src/render/RenderService.h
   src/render/TileCache.h)

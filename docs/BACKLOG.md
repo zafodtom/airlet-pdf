@@ -3,15 +3,15 @@
 ## M1 – před označením Windows verze za hotovou
 
 - Windows Release workflow #2, EXE, testy i instalátor jsou úspěšně vytvořené. Zbývá prověřit čisté Windows 10/11 x64, instalaci a odinstalaci.
-- Při příštím build cyklu sjednotit PDFIUM_ROOT na CMake lomítka a omezit automaticky přidávané generic pluginy windeployqt; balíček nyní obsahuje nepoužívanou závislost QtNetwork. Nevytvářet další CI běh jen kvůli těmto neblokujícím upozorněním.
+- Ve 0.2.0 je připraven úklid CMake cest a generic pluginů windeployqt; ověřit v dalším Windows buildu spolu s novými funkcemi.
 - Změřit skutečný studený start, opakovaný start, HiDPI přesun monitorů, rychlé listování a A0 výkres na cílovém Xeonu/K2200.
 - Prověřit paměť po dlouhém listování, klidovou CPU a ukončení během komplikovaného dekódování.
 
 ## M2 – výběr a ukládání
 
-- Skutečný textový výběr a Ctrl+C, respektovat oprávnění PDF, žádné OCR.
-- Jednotný hit-test a převody zoom/crop/obě otočení/HiDPI.
-- Vždy dostupný obdélníkový výřez do schránky/PNG/JPG.
+- Hotovo v 0.2.0: textová vrstva a Ctrl+C na jedné stránce, respektování oprávnění, bez OCR. Později zvážit vícestránkový výběr a složitější rozvržení/bidi.
+- Hotovo v 0.2.0: hit-test a převody zoom/crop/obě otočení; regresní testy při 100% a simulovaném 200% DPI. Skutečné Windows monitory ověřit prakticky.
+- Hotovo v 0.2.0: obdélníkový výřez do schránky/PNG/JPG, průběh, zrušení, ochrana originálu a atomické uložení.
 - Uložit jako s aktuálními otočeními; nepřepisovat originál.
 - Tisk: dialog tiskárny, rozsah, výpočet velikosti a zrušení mimo GUI vlákno.
 

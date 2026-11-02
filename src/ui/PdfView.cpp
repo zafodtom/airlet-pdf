@@ -1,7 +1,10 @@
 #include "PdfView.h"
 #include "core/Geometry.h"
+#include "core/Selection.h"
 #include <QApplication>
+#include <QClipboard>
 #include <QDragEnterEvent>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -54,6 +57,31 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
         emit pageChanged(1, result.pages);
     });
     connect(&service, &RenderService::rendered, this, &PdfView::acceptResult);
+    connect(&service, &RenderService::textReady, this,
+            [this](quint64 s, quint64 request, int p, TextPage text) {
+                if (s != session)
+                    return;
+                textCache.insert(p, new TextPage(text));
+                if (request != textRequest || p != selectionPage || mode != SelectionMode::Text)
+                    return;
+                activeText = std::make_shared<TextPage>(std::move(text));
+                updateTextSelection();
+                if (!activeText->copyAllowed)
+                    emit selectionNotice(QStringLiteral("Dokument nepovoluje kopírování textu."));
+                else if (activeText->glyphs.isEmpty())
+                    emit selectionNotice(
+                        QStringLiteral("Na stránce není textová vrstva. Použijte Výřez."));
+            });
+    connect(&service, &RenderService::areaReady, this,
+            [this](quint64 s, quint64 request, QImage image, QString error) {
+                if (s == session && request == imageRequest)
+                    emit selectionImageReady(request, image, error);
+            });
+    connect(&service, &RenderService::areaProgress, this,
+            [this](quint64 s, quint64 request, int percent) {
+                if (s == session && request == imageRequest)
+                    emit selectionImageProgress(request, percent);
+            });
 }
 void PdfView::openFile(const QString &p, const QString &password) {
     closeDocument();
@@ -62,6 +90,9 @@ void PdfView::openFile(const QString &p, const QString &password) {
     service.open(session, path, password);
 }
 void PdfView::closeDocument() {
+    clearSelection();
+    cancelSelectionImage();
+    textCache.clear();
     ++session;
     service.close(session);
     sizes.clear();
@@ -107,17 +138,31 @@ void PdfView::rebuildLayout() {
     verticalScrollBar()->setPageStep(viewport()->height());
     horizontalScrollBar()->setRange(0, bounded(documentWidth - viewport()->width()));
     horizontalScrollBar()->setPageStep(viewport()->width());
+    verticalScrollBar()->setSingleStep(std::clamp(viewport()->height() / 20, 32, 64));
+    horizontalScrollBar()->setSingleStep(40);
     changingLayout = false;
 }
 void PdfView::goToPage(int p) {
     if (pages.isEmpty())
         return;
     p = std::clamp(p, 0, int(pages.size() - 1));
+    if (fitMode == 2) {
+        const auto size = rotatedSize(sizes[p], rotations[p]);
+        const auto nextScale =
+            std::clamp(std::min((viewport()->width() - 2 * gap) / (size.width() * 96. / 72.),
+                                (viewport()->height() - 2 * gap) / (size.height() * 96. / 72.)),
+                       .05, 16.);
+        if (std::abs(nextScale - scale) > 1e-8)
+            setZoom(nextScale);
+        fitMode = 2;
+    }
     verticalScrollBar()->setValue(qRound(pages[p].top() - gap));
     schedule();
 }
 void PdfView::setZoom(double value, QPoint anchor) {
     fitMode = 0;
+    pageWheelRemainder = 0;
+    pagePixelRemainder = 0;
     if (anchor.x() < 0)
         anchor = viewport()->rect().center();
     value = std::clamp(value, .05, 16.);
@@ -325,6 +370,26 @@ void PdfView::paintEvent(QPaintEvent *) {
         firstPending = false;
         emit firstImage(openingTimer.elapsed());
     }
+    if (selectionPage >= 0 && selectionPage < pages.size()) {
+        painter.setPen(QPen(QColor(25, 110, 220), 1));
+        painter.setBrush(QColor(35, 125, 240, 65));
+        const auto transform = [this, offset](QRectF bounds) {
+            return QRectF(
+                rotateRect(bounds, sizes[selectionPage], rotations[selectionPage]).topLeft() *
+                        logicalScale() +
+                    pages[selectionPage].topLeft() - offset,
+                rotateRect(bounds, sizes[selectionPage], rotations[selectionPage]).size() *
+                    logicalScale());
+        };
+        if (mode == SelectionMode::Area && hasAreaSelection())
+            painter.drawRect(transform(areaBounds()));
+        else if (activeText && firstGlyph >= 0 && lastGlyph >= 0) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(90, 190, 255, 150));
+            for (int i = std::min(firstGlyph, lastGlyph); i <= std::max(firstGlyph, lastGlyph); ++i)
+                painter.drawRect(transform(activeText->glyphs[i].bounds));
+        }
+    }
 }
 void PdfView::resizeEvent(QResizeEvent *e) {
     QAbstractScrollArea::resizeEvent(e);
@@ -344,17 +409,64 @@ void PdfView::scrollContentsBy(int, int) {
 void PdfView::wheelEvent(QWheelEvent *e) {
     if (e->modifiers() & Qt::ControlModifier) {
         fitMode = 0;
-        const double steps = e->angleDelta().y() / 120.;
+        const double steps =
+            !e->pixelDelta().isNull() ? e->pixelDelta().y() / 120. : e->angleDelta().y() / 120.;
         setZoom(scale * std::pow(1.15, steps), e->position().toPoint());
+        e->accept();
+    } else if (fitMode == 2 && !pages.isEmpty() && !(e->modifiers() & Qt::ShiftModifier) &&
+               (e->angleDelta().y() != 0 || e->pixelDelta().y() != 0)) {
+        int steps = 0;
+        if (!e->pixelDelta().isNull()) {
+            if (e->phase() == Qt::ScrollBegin)
+                pagePixelRemainder = 0;
+            pagePixelRemainder += e->pixelDelta().y();
+            const auto threshold = std::clamp(viewport()->height() * .25, 80., 200.);
+            steps = int(pagePixelRemainder / threshold);
+            pagePixelRemainder -= steps * threshold;
+            if (e->phase() == Qt::ScrollEnd)
+                pagePixelRemainder = 0;
+        } else {
+            pageWheelRemainder += e->angleDelta().y();
+            steps = pageWheelRemainder / 120;
+            pageWheelRemainder %= 120;
+        }
+        if (steps)
+            goToPage(currentPage() - steps);
+        e->accept();
+    } else if (!e->pixelDelta().isNull()) {
+        auto delta = e->pixelDelta();
+        if ((e->modifiers() & Qt::ShiftModifier) && delta.x() == 0) {
+            delta.setX(delta.y());
+            delta.setY(0);
+        }
+        horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
+        verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
         e->accept();
     } else
         QAbstractScrollArea::wheelEvent(e);
 }
 void PdfView::mousePressEvent(QMouseEvent *e) {
+    setFocus(Qt::MouseFocusReason);
     if (e->button() == Qt::MiddleButton) {
         dragging = true;
         dragPosition = e->pos();
         viewport()->setCursor(Qt::ClosedHandCursor);
+        e->accept();
+    } else if (e->button() == Qt::LeftButton) {
+        clearSelection();
+        selectionPage = pageAtPoint(e->position());
+        if (selectionPage < 0)
+            return;
+        selecting = true;
+        selectionStart = selectionEnd = viewportToPage(selectionPage, e->position());
+        if (mode == SelectionMode::Text) {
+            if (const auto *text = textCache.object(selectionPage)) {
+                activeText = std::make_shared<TextPage>(*text);
+                updateTextSelection();
+            } else
+                service.requestText(session, selectionPage, textRequest);
+        }
+        viewport()->update();
         e->accept();
     } else
         QAbstractScrollArea::mousePressEvent(e);
@@ -366,13 +478,26 @@ void PdfView::mouseMoveEvent(QMouseEvent *e) {
         horizontalScrollBar()->setValue(horizontalScrollBar()->value() - d.x());
         verticalScrollBar()->setValue(verticalScrollBar()->value() - d.y());
         e->accept();
+    } else if (selecting) {
+        selectionEnd = viewportToPage(selectionPage, e->position());
+        updateTextSelection();
+        viewport()->update();
+        emit selectionChanged();
+        e->accept();
     } else
         QAbstractScrollArea::mouseMoveEvent(e);
 }
 void PdfView::mouseReleaseEvent(QMouseEvent *e) {
     if (e->button() == Qt::MiddleButton) {
         dragging = false;
-        viewport()->unsetCursor();
+        viewport()->setCursor(mode == SelectionMode::Area ? Qt::CrossCursor : Qt::IBeamCursor);
+        e->accept();
+    } else if (e->button() == Qt::LeftButton && selecting) {
+        selectionEnd = viewportToPage(selectionPage, e->position());
+        selecting = false;
+        updateTextSelection();
+        viewport()->update();
+        emit selectionChanged();
         e->accept();
     } else
         QAbstractScrollArea::mouseReleaseEvent(e);
@@ -395,5 +520,96 @@ bool PdfView::event(QEvent *e) {
         viewport()->update();
     }
     return result;
+}
+int PdfView::pageAtPoint(QPointF point) const {
+    point += QPoint(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    const int p = pageAtY(point.y());
+    return p >= 0 && pages[p].contains(point) ? p : -1;
+}
+QPointF PdfView::pageToViewport(int p, QPointF point) const {
+    if (p < 0 || p >= pages.size())
+        return {};
+    return pages[p].topLeft() + rotatePoint(point, sizes[p], rotations[p]) * logicalScale() -
+           QPoint(horizontalScrollBar()->value(), verticalScrollBar()->value());
+}
+QPointF PdfView::viewportToPage(int p, QPointF point) const {
+    if (p < 0 || p >= pages.size())
+        return {};
+    auto rotated = (point + QPoint(horizontalScrollBar()->value(), verticalScrollBar()->value()) -
+                    pages[p].topLeft()) /
+                   logicalScale();
+    auto result = unrotatePoint(rotated, sizes[p], rotations[p]);
+    return {std::clamp(result.x(), 0., sizes[p].width()),
+            std::clamp(result.y(), 0., sizes[p].height())};
+}
+void PdfView::setSelectionMode(SelectionMode value) {
+    clearSelection();
+    mode = value;
+    viewport()->setCursor(mode == SelectionMode::Area ? Qt::CrossCursor : Qt::IBeamCursor);
+}
+void PdfView::clearSelection() {
+    ++textRequest;
+    selecting = false;
+    selectionPage = -1;
+    firstGlyph = lastGlyph = -1;
+    activeText.reset();
+    selectionStart = selectionEnd = {};
+    viewport()->update();
+    emit selectionChanged();
+}
+void PdfView::updateTextSelection() {
+    if (mode != SelectionMode::Text || !activeText || !activeText->copyAllowed)
+        return;
+    firstGlyph = nearestGlyph(*activeText, selectionStart);
+    lastGlyph = nearestGlyph(*activeText, selectionEnd);
+    viewport()->update();
+    emit selectionChanged();
+}
+QString PdfView::selectedText() const {
+    return mode == SelectionMode::Text && activeText
+               ? airlet::selectedText(*activeText, firstGlyph, lastGlyph)
+               : QString();
+}
+QRectF PdfView::areaBounds() const {
+    if (selectionPage < 0 || selectionPage >= sizes.size())
+        return {};
+    return QRectF(selectionStart, selectionEnd)
+        .normalized()
+        .intersected(QRectF(QPointF(), sizes[selectionPage]));
+}
+bool PdfView::hasAreaSelection() const {
+    return mode == SelectionMode::Area && areaBounds().width() > 1. && areaBounds().height() > 1.;
+}
+quint64 PdfView::requestSelectionImage() {
+    if (!hasAreaSelection())
+        return 0;
+    const auto points = rotateRect(areaBounds(), sizes[selectionPage], rotations[selectionPage]);
+    const auto pageSize = rotatedSize(sizes[selectionPage], rotations[selectionPage]);
+    // 144 dpi by default; bound a single interactive crop to 16 megapixels.
+    const double k =
+        std::min({2., 8192. / points.width(), 8192. / points.height(),
+                  std::sqrt((16. * 1024 * 1024 - 32768) / (points.width() * points.height()))});
+    const QSize full(qCeil(pageSize.width() * k), qCeil(pageSize.height() * k));
+    const QRect tile = QRectF(points.topLeft() * k, points.size() * k)
+                           .toAlignedRect()
+                           .intersected(QRect(QPoint(), full));
+    ++imageRequest;
+    service.requestArea(session, imageRequest,
+                        {selectionPage, rotations[selectionPage], full, tile, false, {}});
+    return imageRequest;
+}
+void PdfView::cancelSelectionImage() {
+    ++imageRequest;
+    service.cancelArea();
+}
+void PdfView::keyPressEvent(QKeyEvent *e) {
+    if (e->matches(QKeySequence::Copy) && !selectedText().isEmpty()) {
+        QApplication::clipboard()->setText(selectedText());
+        e->accept();
+    } else if (e->key() == Qt::Key_Escape) {
+        clearSelection();
+        e->accept();
+    } else
+        QAbstractScrollArea::keyPressEvent(e);
 }
 } // namespace airlet

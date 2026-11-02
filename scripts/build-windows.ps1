@@ -22,7 +22,7 @@ try {
     & cmake --install $build --config Release --prefix $stage
     if ($LASTEXITCODE -ne 0) { throw 'Staging selhal.' }
     & "$($deps.QtRoot)\bin\windeployqt.exe" --release --no-compiler-runtime --no-translations --no-opengl-sw `
-        --no-system-d3d-compiler --no-quick-import --dir $stage "$stage\AirletPDF.exe"
+        --no-system-d3d-compiler --no-quick-import --skip-plugin-types generic --dir $stage "$stage\AirletPDF.exe"
     if ($LASTEXITCODE -ne 0) { throw 'windeployqt selhalo.' }
     # App-local MSVC runtime: no machine-wide installer or administrator rights.
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -39,7 +39,7 @@ try {
     Copy-Item $deps.QtSource "$stage\sources\qtbase-everywhere-src-6.8.3.tar.xz"
     Copy-Item "$root\dependencies.lock.json" $stage
     New-Item -ItemType Directory -Force $dist | Out-Null
-    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.1.0-x64-portable.zip" -Force
+    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.2.0-x64-portable.zip" -Force
     if (!$SkipInstaller) {
         $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
         if (!(Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }

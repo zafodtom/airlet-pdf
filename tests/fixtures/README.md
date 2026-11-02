@@ -10,5 +10,7 @@ Všechny soubory vznikly pro tento projekt lokálně pomocí ReportLab/Pillow a 
 | scan.pdf | Vložený syntetický rastr, bez textové vrstvy |
 | cropped-rotated.pdf | MediaBox 400×500, CropBox (80,120)–(240,360), Rotate=90, text a obdélník |
 | encrypted.pdf | První strana basic.pdf, heslo `airlet-test` |
+| mixed-pages.pdf | 3 stránky různých formátů: 300×400, 600×300 a 200×1000 bodů |
+| czech-text.pdf | Dva české řádky s vloženou podmnožinou DejaVu Sans; licence v DejaVu-font-LICENSE.txt |
 
 Tyto nástroje nejsou závislostí aplikace ani sestavení. Fixtures jsou již přiloženy a testy pouze čtou jejich PDF bytes.
