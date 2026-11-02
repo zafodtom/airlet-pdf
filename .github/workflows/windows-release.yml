@@ -18,7 +18,7 @@ jobs:
       - name: Installer and portable package (including Qt sources)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: AirletPDF-0.2.0-x64
+          name: AirletPDF-0.3.0-x64
           path: dist/*
           retention-days: 3
           if-no-files-found: error

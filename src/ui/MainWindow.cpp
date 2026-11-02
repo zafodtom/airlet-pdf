@@ -1,15 +1,23 @@
 #include "MainWindow.h"
 #include "PdfView.h"
+#include "export/PageExport.h"
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QInputDialog>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -45,8 +53,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), view(new PdfView(
         openedPath.clear();
         setWindowTitle("Airlet PDF");
     });
+    auto *exportAction = action(QStringLiteral("Export…"), QKeySequence(Qt::CTRL | Qt::Key_E),
+                                [this] { exportPages(); });
     bar->addSeparator();
-    QList<QAction *> documentActions{close};
+    QList<QAction *> documentActions{close, exportAction};
     documentActions << action(QStringLiteral("|◀"), QKeySequence(Qt::CTRL | Qt::Key_Home),
                               [this] { view->goToPage(0); });
     documentActions << action(QStringLiteral("◀"), QKeySequence(Qt::Key_PageUp),
@@ -326,6 +336,160 @@ void MainWindow::endAreaOperation() {
         cropProgress = nullptr;
     }
 }
+MainWindow::~MainWindow() {
+    exportProcess.disconnect(this);
+    if (exportProcess.state() != QProcess::NotRunning) {
+        exportProcess.kill();
+        exportProcess.waitForFinished(3000);
+    }
+}
+void MainWindow::exportPages() {
+    if (openedPath.isEmpty())
+        return;
+    if (exportProcess.state() != QProcess::NotRunning) {
+        statusBar()->showMessage(QStringLiteral("Export už probíhá."));
+        return;
+    }
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("Export stránek do obrázků"));
+    QFormLayout form(&dialog);
+    QComboBox scope;
+    scope.addItems({QStringLiteral("Aktuální stránka"), QStringLiteral("Všechny stránky"),
+                    QStringLiteral("Vlastní rozsah")});
+    QLineEdit range;
+    range.setPlaceholderText(QStringLiteral("1–5, 8, 12"));
+    range.setEnabled(false);
+    connect(&scope, qOverload<int>(&QComboBox::currentIndexChanged), &range,
+            [&range](int i) { range.setEnabled(i == 2); });
+    QComboBox format;
+    format.addItems({"PNG", "JPG"});
+    QSpinBox dpi;
+    dpi.setRange(72, 600);
+    dpi.setValue(150);
+    QSpinBox quality;
+    quality.setRange(1, 100);
+    quality.setValue(92);
+    quality.setEnabled(false);
+    connect(&format, qOverload<int>(&QComboBox::currentIndexChanged), &quality,
+            [&quality](int i) { quality.setEnabled(i == 1); });
+    form.addRow(QStringLiteral("Stránky:"), &scope);
+    form.addRow(QStringLiteral("Rozsah:"), &range);
+    form.addRow(QStringLiteral("Formát:"), &format);
+    form.addRow(QStringLiteral("DPI:"), &dpi);
+    form.addRow(QStringLiteral("Kvalita JPG:"), &quality);
+    QDialogButtonBox buttons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    form.addRow(&buttons);
+    connect(&buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    const auto specification = scope.currentIndex() == 0 ? QString::number(view->currentPage() + 1)
+                               : scope.currentIndex() == 1
+                                   ? QStringLiteral("1-%1").arg(view->pageCount())
+                                   : range.text();
+    QString error;
+    const auto pages = parsePageRange(specification, view->pageCount(), &error);
+    if (!error.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("Rozsah"), error);
+        return;
+    }
+    const auto parent = QFileDialog::getExistingDirectory(
+        this, QStringLiteral("Nadřazená složka exportu (vytvoří se složka podle PDF)"), lastFolder);
+    if (parent.isEmpty())
+        return;
+    const auto output = QDir(parent).filePath(QFileInfo(openedPath).completeBaseName());
+    if (!QDir().mkpath(output)) {
+        QMessageBox::warning(this, QStringLiteral("Export"),
+                             QStringLiteral("Složku nelze vytvořit."));
+        return;
+    }
+    exportTemporary =
+        std::make_unique<QTemporaryDir>(QDir(output).filePath(".airlet-export-XXXXXX"));
+    if (!exportTemporary->isValid()) {
+        exportTemporary.reset();
+        return;
+    }
+    QJsonArray rotations;
+    for (int r : view->pageRotations())
+        rotations.append(r);
+    const QJsonObject job{{"source", openedPath},       {"password", view->exportPassword()},
+                          {"range", specification},     {"dpi", dpi.value()},
+                          {"quality", quality.value()}, {"format", format.currentText()},
+                          {"output", output},           {"temporary", exportTemporary->path()},
+                          {"rotations", rotations}};
+    exportCompleted = 0;
+    exportError.clear();
+    exportCancelled = false;
+    exportBuffer.clear();
+    exportProgress = new QProgressDialog(QStringLiteral("Exportuji stránky…"),
+                                         QStringLiteral("Zrušit"), 0, pages.size(), this);
+    exportProgress->setWindowModality(Qt::NonModal);
+    exportProgress->setMinimumDuration(0);
+    exportProgress->setAutoClose(false);
+    exportProgress->setAutoReset(false);
+    connect(exportProgress, &QProgressDialog::canceled, this, [this] {
+        exportCancelled = true;
+        exportProcess.kill();
+    });
+    exportProcess.disconnect(this);
+    connect(&exportProcess, &QProcess::readyReadStandardOutput, this, [this] {
+        exportBuffer += exportProcess.readAllStandardOutput();
+        int end;
+        while ((end = exportBuffer.indexOf('\n')) >= 0) {
+            const auto record = QJsonDocument::fromJson(exportBuffer.left(end)).object();
+            exportBuffer.remove(0, end + 1);
+            if (record.contains("error"))
+                exportError = record["error"].toString();
+            if (record.contains("completed")) {
+                exportCompleted = record["completed"].toInt();
+                if (exportProgress)
+                    exportProgress->setValue(exportCompleted);
+            }
+        }
+    });
+    connect(
+        &exportProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+        [this, output](int code, QProcess::ExitStatus status) {
+            if (exportProgress) {
+                exportProgress->hide();
+                exportProgress->deleteLater();
+                exportProgress = nullptr;
+            }
+            exportTemporary.reset();
+            const auto message =
+                QStringLiteral("Dokončeno %1 stran. Složka: %2").arg(exportCompleted).arg(output);
+            if (exportCancelled)
+                QMessageBox::information(this, QStringLiteral("Export zrušen"),
+                                         message +
+                                             QStringLiteral("\nHotové obrázky zůstaly zachovány, "
+                                                            "nedokončený výstup byl odstraněn."));
+            else if (code != 0 || status != QProcess::NormalExit)
+                QMessageBox::warning(this, QStringLiteral("Export nebyl dokončen"),
+                                     message + "\n" +
+                                         (exportError.isEmpty()
+                                              ? QStringLiteral("Pomocný proces skončil chybou.")
+                                              : exportError));
+            else
+                QMessageBox::information(this, QStringLiteral("Export dokončen"), message);
+        });
+    connect(&exportProcess, &QProcess::started, this, [this, job] {
+        exportProcess.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + "\n");
+        exportProcess.closeWriteChannel();
+    });
+    connect(&exportProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            if (exportProgress) {
+                exportProgress->hide();
+                exportProgress->deleteLater();
+                exportProgress = nullptr;
+            }
+            exportTemporary.reset();
+            QMessageBox::warning(this, QStringLiteral("Export"), exportProcess.errorString());
+        }
+    });
+    exportProcess.start(QCoreApplication::applicationFilePath(), {"--export-worker"});
+    exportProgress->show();
+}
 void MainWindow::chooseFile() {
     const auto p =
         QFileDialog::getOpenFileName(this, QStringLiteral("Otevřít PDF"), lastFolder,
@@ -341,6 +505,12 @@ void MainWindow::openFile(const QString &p) {
     }
 }
 void MainWindow::closeEvent(QCloseEvent *e) {
+    exportProcess.disconnect(this);
+    if (exportProcess.state() != QProcess::NotRunning) {
+        exportProcess.kill();
+        exportProcess.waitForFinished(3000);
+    }
+    exportTemporary.reset();
     QSettings settings;
     settings.setValue("windowGeometry", saveGeometry());
     settings.setValue("lastFolder", lastFolder);

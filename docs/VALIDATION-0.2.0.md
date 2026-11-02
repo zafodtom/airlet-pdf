@@ -21,7 +21,7 @@ Vizuálně zkontrolovány syntetické snímky hlavního okna, dočasného textov
 
 ## Zatím neověřeno
 
-Nová verze 0.2.0 zatím neprošla Windows kompilací/testy ani vytvořením instalátoru. Předchozí úspěch 0.1.0 se na ni automaticky nepřenáší. Workflow zůstává pouze ruční a vytvoří artefakt `AirletPDF-0.2.0-x64` po úspěšném běhu.
+Windows běh #3, ID 41479675732, pro commit 59f7ec9 úspěšně dokončil kompilaci, automatické testy i tvorbu instalátoru. Artefakt AirletPDF-0.2.0-x64 má ID 13159656695. Interaktivní používání této verze uživatelem ještě nebylo potvrzeno.
 
 Windows instalace, nové ovládání myší/touchpadem na cílovém PC, reálné HiDPI monitory a časové/CPU/paměťové měření ještě vyžadují praktickou zkoušku. Nejsou uváděna nová číselná Windows výkonová tvrzení.
 

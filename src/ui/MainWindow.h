@@ -2,6 +2,9 @@
 #include "export/ImageSaveJob.h"
 #include <QMainWindow>
 #include <QPointer>
+#include <QProcess>
+#include <QTemporaryDir>
+#include <memory>
 class QLabel;
 class QSpinBox;
 class QAction;
@@ -13,6 +16,7 @@ class MainWindow final : public QMainWindow {
   public:
     explicit MainWindow(QWidget *parent = nullptr);
     void openFile(const QString &path);
+    ~MainWindow() override;
     PdfView *pdfView() const {
         return view;
     }
@@ -33,6 +37,14 @@ class MainWindow final : public QMainWindow {
     QString pendingSavePath, pendingSaveSource;
     QByteArray pendingSaveFormat;
     bool pendingOverwrite = false;
+    QProcess exportProcess;
+    std::unique_ptr<QTemporaryDir> exportTemporary;
+    QPointer<QProgressDialog> exportProgress;
+    QByteArray exportBuffer;
+    int exportCompleted = 0;
+    QString exportError;
+    bool exportCancelled = false;
+    void exportPages();
     void chooseFile();
     void copySelection();
     void saveArea();

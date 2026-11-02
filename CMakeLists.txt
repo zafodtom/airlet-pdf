@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AirletPDF VERSION 0.2.0 LANGUAGES CXX)
+project(AirletPDF VERSION 0.3.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -12,6 +12,7 @@ include(cmake/Pdfium.cmake)
 add_library(airlet_core STATIC
   src/core/Geometry.cpp src/core/Geometry.h src/core/PdfEngine.h
   src/core/Selection.cpp src/core/Selection.h
+  src/export/PageExport.cpp src/export/PageExport.h
   src/export/ImageSaveJob.cpp src/export/ImageSaveJob.h
   src/pdfium/PdfiumEngine.cpp src/pdfium/PdfiumEngine.h
   src/render/RenderService.cpp src/render/RenderService.h
@@ -46,10 +47,11 @@ if(BUILD_TESTING)
   find_package(Qt6 REQUIRED COMPONENTS Test)
   qt_add_executable(airlet_tests tests/TestAirlet.cpp)
   target_link_libraries(airlet_tests PRIVATE airlet_ui Qt6::Test)
-  target_compile_definitions(airlet_tests PRIVATE FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+  target_compile_definitions(airlet_tests PRIVATE EXPORT_EXE="$<TARGET_FILE:AirletPDF>" FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
   if(MSVC)
     target_compile_options(airlet_tests PRIVATE /W4 /permissive- /utf-8)
   endif()
+  add_dependencies(airlet_tests AirletPDF)
   add_test(NAME airlet COMMAND airlet_tests)
   set_tests_properties(airlet PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
   if(WIN32)

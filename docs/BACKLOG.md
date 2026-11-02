@@ -18,7 +18,7 @@
 ## M3 – exporty
 
 - Líně spuštěný samostatný exportní proces. Zrušení i při zavírání prohlížeče, žádný osiřelý proces.
-- JPG/PNG celé stránky; dialog DPI a JPG kvality.
+- Hotovo v 0.3.0: JPG/PNG celé stránky, rozsah, DPI/kvalita, proces, průběh a zrušení. Windows sestavení nové verze čeká na ověření.
 - UTF-8 TXT z existující vrstvy; vybrané stránky do PDF bez rasterizace.
 - Obrázky: oddělit objektovou extrakci od renderu strany a vektorového výřezu. Původní formát zachovat, kde PDFium umožní získat vhodný dekódovatelný stream; ostatní transparentně označit jako PNG extrakci. Prověřit masky, alpha, inline images, form XObjects a opakovaně použitý objekt.
 - Rozsah aktuální/vše/vlastní, validovat `1–5, 8, 12`, duplicity, obrácené či neplatné rozsahy.

@@ -2,16 +2,22 @@
 #include "core/PdfEngine.h"
 #include "core/Selection.h"
 #include "export/ImageSaveJob.h"
+#include "export/PageExport.h"
 #include "render/RenderService.h"
 #include "render/TileCache.h"
 #include "ui/MainWindow.h"
 #include "ui/PdfView.h"
 #include <QApplication>
 #include <QClipboard>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcess>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -74,6 +80,83 @@ class SlowEngine final : public PdfEngine {
 class TestAirlet final : public QObject {
     Q_OBJECT
   private slots:
+    void exportWorkerIntegration() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QDir root(dir.path());
+        root.mkdir("parts");
+        QJsonObject job{{"source", fixture("basic.pdf")},
+                        {"password", ""},
+                        {"range", "1, 3"},
+                        {"dpi", 72},
+                        {"quality", 85},
+                        {"format", "PNG"},
+                        {"output", dir.path()},
+                        {"temporary", root.filePath("parts")},
+                        {"rotations", QJsonArray{1, 0, 0}}};
+        auto run = [&](QJsonObject data) {
+            QProcess process;
+            process.start(QString::fromUtf8(EXPORT_EXE), {"--export-worker"});
+            if (!process.waitForStarted(5000))
+                return -999;
+            process.write(QJsonDocument(data).toJson(QJsonDocument::Compact) + "\n");
+            process.closeWriteChannel();
+            if (!process.waitForFinished(15000)) {
+                process.kill();
+                process.waitForFinished();
+                return -998;
+            }
+            return process.exitCode();
+        };
+        QCOMPARE(run(job), 0);
+        QCOMPARE(QImage(root.filePath("basic_001.png")).size(), QSize(400, 300));
+        QCOMPARE(QImage(root.filePath("basic_003.png")).size(), QSize(300, 400));
+        QVERIFY(!QFile::exists(root.filePath("basic_002.png")));
+        QFile file(root.filePath("basic_001.png"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto bytes = file.readAll();
+        file.close();
+        QCOMPARE(run(job), 1);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), bytes);
+        file.close();
+        job["format"] = "JPG";
+        job["range"] = "2";
+        QCOMPARE(run(job), 0);
+        QCOMPARE(QImage(root.filePath("basic_002.jpg")).size(), QSize(300, 400));
+        job["range"] = "0";
+        QCOMPARE(run(job), 1);
+        job["source"] = fixture("encrypted.pdf");
+        job["password"] = "airlet-test";
+        job["range"] = "1";
+        QCOMPARE(run(job), 0);
+        QVERIFY(QFile::exists(root.filePath("encrypted_001.jpg")));
+        job["source"] = fixture("long.pdf");
+        job["password"] = "";
+        job["range"] = "1-500";
+        job["dpi"] = 300;
+        QProcess cancelled;
+        cancelled.start(QString::fromUtf8(EXPORT_EXE), {"--export-worker"});
+        QVERIFY(cancelled.waitForStarted(5000));
+        cancelled.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + "\n");
+        cancelled.closeWriteChannel();
+        QVERIFY(cancelled.waitForReadyRead(10000));
+        cancelled.kill();
+        QVERIFY(cancelled.waitForFinished(5000));
+        for (const auto &name : root.entryList({"long_*.jpg"}, QDir::Files))
+            QVERIFY(!QImage(root.filePath(name)).isNull());
+        QVERIFY(QDir(root.filePath("parts")).removeRecursively());
+    }
+    void exportRanges() {
+        QString error;
+        QCOMPARE(parsePageRange(QString::fromUtf8("1–3, 8, 3"), 10, &error),
+                 QVector<int>({0, 1, 2, 7}));
+        QVERIFY(error.isEmpty());
+        for (const auto &range : {"0", "3-1", "1,", "11", "1-a", ""}) {
+            QVERIFY(parsePageRange(range, 10, &error).isEmpty());
+            QVERIFY(!error.isEmpty());
+        }
+    }
     void initTestCase() {
         qRegisterMetaType<OpenResult>();
         qRegisterMetaType<RenderRequest>();

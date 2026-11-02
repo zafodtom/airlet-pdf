@@ -86,6 +86,7 @@ PdfView::PdfView(QWidget *parent) : QAbstractScrollArea(parent), service(this) {
 void PdfView::openFile(const QString &p, const QString &password) {
     closeDocument();
     path = p;
+    this->password = password;
     openingTimer.start();
     service.open(session, path, password);
 }
@@ -93,6 +94,7 @@ void PdfView::closeDocument() {
     clearSelection();
     cancelSelectionImage();
     textCache.clear();
+    password.clear();
     ++session;
     service.close(session);
     sizes.clear();

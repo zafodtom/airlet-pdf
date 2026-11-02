@@ -14,6 +14,12 @@ class PdfView final : public QAbstractScrollArea {
     explicit PdfView(QWidget *parent = nullptr);
     void openFile(const QString &path, const QString &password = {});
     void closeDocument();
+    QString exportPassword() const {
+        return password;
+    }
+    QVector<int> pageRotations() const {
+        return rotations;
+    }
     void goToPage(int page);
     int currentPage() const;
     int pageCount() const {
@@ -82,7 +88,7 @@ class PdfView final : public QAbstractScrollArea {
     double logicalScale() const {
         return scale * 96. / 72.;
     }
-    QString path;
+    QString path, password;
     QElapsedTimer openingTimer;
     bool firstPending = false, changingLayout = false, dragging = false, metadataPending = false;
     QPoint dragPosition;
