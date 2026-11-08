@@ -47,7 +47,7 @@ try {
     Copy-Item $deps.QtSource "$stage\sources\qtbase-everywhere-src-6.8.3.tar.xz"
     Copy-Item "$root\dependencies.lock.json" $stage
     New-Item -ItemType Directory -Force $dist | Out-Null
-    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.6.4-x64-portable.zip" -Force
+    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.6.5-x64-portable.zip" -Force
     if (!$SkipInstaller) {
         $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
         if (!(Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }
@@ -55,9 +55,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Inno Setup selhal.' }
     }
     if (!$SkipInstaller) {
-        $installer = Get-Item "$dist\AirletPDF-Setup-0.6.4-x64.exe"
+        $installer = Get-Item "$dist\AirletPDF-Setup-0.6.5-x64.exe"
         $manifest = [ordered]@{
-            schema = 1; version = '0.6.4'; installer = [ordered]@{
+            schema = 1; version = '0.6.5'; installer = [ordered]@{
                 name = $installer.Name
                 size = $installer.Length
                 sha256 = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()

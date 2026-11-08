@@ -1,5 +1,10 @@
 # Airlet PDF — changelog
 
+## 0.6.5 — update verification release
+
+- Version-only maintenance release to verify the integrated update from 0.6.4.
+- Application features, PDF rendering and updater behavior are unchanged.
+
 ## 0.6.4 — more reliable manual updates
 
 - Fall back to GitHub's asset API for interrupted manifest and installer downloads; use bounded retries for temporary errors.
