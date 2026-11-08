@@ -133,6 +133,7 @@ class PdfView final : public QAbstractScrollArea {
     QRectF pageRect(int index) const;
     int pageAtY(double y) const;
     QSize pixelSize(int index) const;
+    QRectF rasterRect(int index) const;
     QString tileKey(int page, QSize size, QRect tile) const;
     QString previewKey(int page) const;
     void rebuildLayout();

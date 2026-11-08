@@ -1,5 +1,11 @@
 # Airlet PDF — changelog
 
+## 0.6.3 — sharper page display
+
+- Present sharp PDF tiles at native screen resolution without a second scaling/filtering pass.
+- Align raster placement to physical display pixels, including fractional display scaling.
+- Retain fast previews and bounded tile caches.
+
 ## 0.6.2 — Trimenor brand alignment
 
 - Developer/publisher identity standardized as **Trimenor** in About and the installer.

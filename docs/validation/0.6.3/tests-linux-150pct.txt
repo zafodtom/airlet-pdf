@@ -1,0 +1,119 @@
+********* Start testing of TestAirlet *********
+Config: Using QtTest library 6.4.2, Qt 6.4.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 13.2.0), ubuntu 24.04
+PASS   : TestAirlet::initTestCase()
+PASS   : TestAirlet::updateMetadataValidation()
+QWARN  : TestAirlet::backwardFolderContinuation() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::backwardFolderContinuation() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::backwardFolderContinuation()
+QWARN  : TestAirlet::folderOrderAndContinuation() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::folderOrderAndContinuation() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::folderOrderAndContinuation()
+PASS   : TestAirlet::continuationAtScrollBoundary()
+PASS   : TestAirlet::englishInterfaceAndWorker()
+PASS   : TestAirlet::continuousHighlightBands()
+QINFO  : TestAirlet::documentJobsIntegration() {"error":"PDF vyžaduje správné heslo."}
+ QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+QINFO  : TestAirlet::documentJobsIntegration() {"error":"Výstup již existuje. Zvolte nový název."}
+ QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+QINFO  : TestAirlet::documentJobsIntegration() {"completed":1,"total":2}
+{"error":"Obrázek 2 má neplatné rozměry nebo přesahuje 64 megapixelů."}
+ QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+QINFO  : TestAirlet::documentJobsIntegration() {"error":"Výstup již existuje nebo není zadán."}
+ QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+QINFO  : TestAirlet::documentJobsIntegration() {"error":"Neplatný rozsah stran. Použijte například 1–5, 8, 12."}
+ QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+PASS   : TestAirlet::documentJobsIntegration()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support raise()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support raise()
+QWARN  : TestAirlet::searchWindowLifecycle() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::searchWindowLifecycle()
+QWARN  : TestAirlet::exportWorkerIntegration() Export worker status: QProcess::NormalExit exit code: 1 stdout: {"error":"Soubor už existuje: basic_001.png. Vyberte jinou složku nebo přesuňte původní export."}
+ stderr: QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+QWARN  : TestAirlet::exportWorkerIntegration() Export worker status: QProcess::NormalExit exit code: 1 stdout: {"error":"Neplatný rozsah stran. Použijte například 1–5, 8, 12."}
+ stderr: QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+
+PASS   : TestAirlet::exportWorkerIntegration()
+PASS   : TestAirlet::exportRanges()
+PASS   : TestAirlet::coordinates(-4)
+PASS   : TestAirlet::coordinates(-3)
+PASS   : TestAirlet::coordinates(-2)
+PASS   : TestAirlet::coordinates(-1)
+PASS   : TestAirlet::coordinates(0)
+PASS   : TestAirlet::coordinates(1)
+PASS   : TestAirlet::coordinates(2)
+PASS   : TestAirlet::coordinates(3)
+PASS   : TestAirlet::coordinates(4)
+PASS   : TestAirlet::coordinates(5)
+PASS   : TestAirlet::coordinates(6)
+PASS   : TestAirlet::coordinates(7)
+PASS   : TestAirlet::openUnicodeAndPassword()
+PASS   : TestAirlet::tileMatchesFull(0)
+PASS   : TestAirlet::tileMatchesFull(1)
+PASS   : TestAirlet::tileMatchesFull(2)
+PASS   : TestAirlet::tileMatchesFull(3)
+PASS   : TestAirlet::cancelAndBounds()
+PASS   : TestAirlet::cropIntrinsicRotationAndText()
+PASS   : TestAirlet::scannedHasNoText()
+PASS   : TestAirlet::cacheBound()
+PASS   : TestAirlet::serviceReplacementAndIdle()
+PASS   : TestAirlet::cancelInFlightAndJoin()
+QINFO  : TestAirlet::viewZoomScrollCloseAndIdle() idle_process_cpu_ms_over_500ms=0.115
+PASS   : TestAirlet::viewZoomScrollCloseAndIdle()
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(fractional-0)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(tiled-0)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(fractional-1)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(tiled-1)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(fractional-2)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(tiled-2)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(fractional-3)
+PASS   : TestAirlet::sharpViewMatchesNativeRaster(tiled-3)
+QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::mainWindowSmoke() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::mainWindowSmoke()
+QWARN  : TestAirlet::defaultPageViewAndSharedToolbarState() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::defaultPageViewAndSharedToolbarState() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::defaultPageViewAndSharedToolbarState()
+QWARN  : TestAirlet::landscapeFitDoesNotOscillate() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::landscapeFitDoesNotOscillate() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::landscapeFitDoesNotOscillate()
+PASS   : TestAirlet::wheelPagesAndContinuousScroll()
+PASS   : TestAirlet::wholePageWheelFitsMixedSizes()
+PASS   : TestAirlet::czechMultilineText()
+QWARN  : TestAirlet::mainWindowCropClipboard() This plugin does not support propagateSizeHints()
+QWARN  : TestAirlet::mainWindowCropClipboard() This plugin does not support propagateSizeHints()
+PASS   : TestAirlet::mainWindowCropClipboard()
+PASS   : TestAirlet::selectionGeometryAndText(r0-z0.75-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r0-z0.75-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r0-z1.5-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r0-z1.5-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r1-z0.75-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r1-z0.75-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r1-z1.5-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r1-z1.5-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r2-z0.75-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r2-z0.75-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r2-z1.5-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r2-z1.5-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r3-z0.75-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r3-z0.75-crop1)
+PASS   : TestAirlet::selectionGeometryAndText(r3-z1.5-crop0)
+PASS   : TestAirlet::selectionGeometryAndText(r3-z1.5-crop1)
+PASS   : TestAirlet::cropRotations(0)
+PASS   : TestAirlet::cropRotations(1)
+PASS   : TestAirlet::cropRotations(2)
+PASS   : TestAirlet::cropRotations(3)
+PASS   : TestAirlet::lazyTextAndCropService()
+PASS   : TestAirlet::cancelAreaOnDocumentChange()
+PASS   : TestAirlet::imageSaveAtomicAndOriginalProtection()
+PASS   : TestAirlet::cleanupTestCase()
+Totals: 74 passed, 0 failed, 0 skipped, 0 blacklisted, 11764ms
+********* Finished testing of TestAirlet *********

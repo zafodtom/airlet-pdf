@@ -41,6 +41,12 @@
 - Praktický přechod 0.6.0 → 0.6.1 přes aktualizace čeká na Windows ověření.
 - Podpis certifikátem odložen podle pokynu uživatele.
 
+## 0.6.3 – oprava měkkého zobrazení
+
+- Ostré dlaždice bez dodatečného škálování a vyhlazování, zarovnání na fyzické pixely displeje.
+- Syntetické porovnání skutečně zobrazených pixelů s přímým rastrem PDFium, neceločíselný zoom, otočení a více dlaždic.
+- Windows sestavení a kontrola výsledku na uživatelském dokumentu zbývají k ověření.
+
 ## Nyní nepřidávat
 
 - Benchmark, panel náhledů/záložek/historie navigace.

@@ -13,14 +13,14 @@ Z kořene zdrojů:
 .\scripts\build-windows.ps1
 ```
 
-Verze 0.6.0 prošla Windows CI #11 a je publikovaná. Verze 0.6.1 vyžaduje nové ruční sestavení; volba publish_release navíc zveřejní stabilní balíček pro ruční aktualizace v aplikaci.
+Verze 0.6.0 prošla Windows CI #11 a je publikovaná. Verze 0.6.3 vyžaduje nové ruční sestavení; volba publish_release navíc zveřejní stabilní balíček pro ruční aktualizace v aplikaci.
 
 Skript stáhne QtBase binární archiv, odpovídající zdroje QtBase a PDFium, každý ověří SHA256 a připraví `.deps`. Následuje Visual Studio x64 Release sestavení, testy, staging, windeployqt, app-local MSVC DLL a Inno Setup. Není potřeba Qt účet ani placený SDK. Aplikace pro běh nepotřebuje Python, 7-Zip, CMake ani Visual Studio.
 
 Výsledky:
 
-- `dist/AirletPDF-Setup-0.6.1-x64.exe`
-- `dist/AirletPDF-0.6.1-x64-portable.zip`
+- `dist/AirletPDF-Setup-0.6.3-x64.exe`
+- `dist/AirletPDF-0.6.3-x64-portable.zip`
 - `dist/SHA256SUMS.txt`
 
 Zdroje Qt jsou uvnitř obou variant v adresáři `sources`. Proto mají balíčky přibližně o 47 MiB více než samotný program. Soubory licencí jsou v `licenses`.
@@ -31,7 +31,7 @@ Nejde o bitově identické sestavení napříč měnícími se Windows SDK a MSV
 
 ## Ruční GitHub Actions
 
-Actions → **Windows Release (manual)** → Run workflow. Jediný job, maximálně 25 minut, build paralelně 2, uchování výsledků 3 dny. Žádné push/PR/schedule triggery. Artefakt `AirletPDF-0.6.1-x64` obsahuje oba balíčky a SHA256. Volba `publish_release` navíc publikuje stabilní veřejné vydání v0.6.1 pro aktualizace v aplikaci. Bez této volby se vytvoří jen artefakty.
+Actions → **Windows Release (manual)** → Run workflow. Jediný job, maximálně 25 minut, build paralelně 2, uchování výsledků 3 dny. Žádné push/PR/schedule triggery. Artefakt `AirletPDF-0.6.3-x64` obsahuje oba balíčky a SHA256. Volba `publish_release` navíc publikuje stabilní veřejné vydání v0.6.3 pro aktualizace v aplikaci. Bez této volby se vytvoří jen artefakty.
 
 ## Linux – vývojové ověření
 

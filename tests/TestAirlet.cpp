@@ -28,6 +28,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPainter>
 #include <QProcess>
 #include <QScrollBar>
 #include <QSignalSpy>
@@ -848,6 +849,68 @@ class TestAirlet final : public QObject {
         QCOMPARE(view.pageCount(), 0);
         QTest::qWait(50);
         QCOMPARE(view.cachedBytes(), 0);
+    }
+    void sharpViewMatchesNativeRaster_data() {
+        QTest::addColumn<double>("zoom");
+        QTest::addColumn<int>("rotation");
+        for (int r = 0; r < 4; ++r) {
+            QTest::newRow(qPrintable(QString("fractional-%1").arg(r))) << .731 << r;
+            QTest::newRow(qPrintable(QString("tiled-%1").arg(r))) << 1.3 << r;
+        }
+    }
+    void sharpViewMatchesNativeRaster() {
+        QFETCH(double, zoom);
+        QFETCH(int, rotation);
+        PdfView view;
+        view.resize(901, 801);
+        view.show();
+        QSignalSpy opened(&view, &PdfView::documentOpened);
+        view.openFile(fixture("basic.pdf"));
+        QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+        if (rotation)
+            view.rotate(rotation);
+        view.setZoom(zoom);
+        view.goToPage(0);
+        const auto dpr = view.viewport()->devicePixelRatioF();
+        auto engine = makePdfiumEngine();
+        QCOMPARE(engine->open(fixture("basic.pdf"), {}).error, OpenError::None);
+        const auto points = rotatedSize(engine->pageInfo(0).points, rotation);
+        const QSize pixels(qCeil(points.width() * zoom * 96. / 72. * dpr),
+                           qCeil(points.height() * zoom * 96. / 72. * dpr));
+        QImage expected(pixels, QImage::Format_RGB32);
+        expected.fill(Qt::white);
+        {
+            QPainter referencePainter(&expected);
+            // Compare against native source tiles. PDFium itself can round a
+            // vector edge differently with a translated tile vs a full-page render.
+            for (int y = 0; y < pixels.height(); y += 512)
+                for (int x = 0; x < pixels.width(); x += 512) {
+                    const auto tile = QRect(x, y, 512, 512).intersected(QRect(QPoint(), pixels));
+                    const auto image = engine->render({0, rotation, pixels, tile, false, {}},
+                                                      [] { return false; });
+                    QVERIFY(!image.isNull());
+                    referencePainter.drawImage(tile.topLeft(), image);
+                }
+        }
+        // Compare the actual presented pixels with a native PDFium raster, not
+        // a resized reference. This catches filtering, tile seams and phase shifts.
+        const auto origin =
+            QRectF(view.pageToViewport(0, {0, 0}), view.pageToViewport(0, {300, 400}))
+                .normalized()
+                .topLeft() *
+            dpr;
+        const QRect region(QPoint(qRound(origin.x()), qRound(origin.y())) + QPoint(1, 1),
+                           pixels - QSize(2, 2));
+        const auto reference = expected.copy(1, 1, pixels.width() - 2, pixels.height() - 2)
+                                   .convertToFormat(QImage::Format_RGB32);
+        QTRY_VERIFY_WITH_TIMEOUT(view.viewport()->grab().toImage().copy(region).convertToFormat(
+                                     QImage::Format_RGB32) == reference,
+                                 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(view.jobsStarted(), view.jobsFinished(), 5000);
+        const auto jobs = view.jobsStarted();
+        view.viewport()->update();
+        QTest::qWait(50);
+        QCOMPARE(view.jobsStarted(), jobs);
     }
     void mainWindowSmoke() {
         MainWindow window;

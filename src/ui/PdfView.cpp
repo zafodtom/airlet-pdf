@@ -300,6 +300,16 @@ QSize PdfView::pixelSize(int p) const {
     return QSize(qCeil(std::clamp(s.width(), 1., 1000000.)),
                  qCeil(std::clamp(s.height(), 1., 1000000.)));
 }
+QRectF PdfView::rasterRect(int p) const {
+    // Snap the page origin in viewport device pixels. Keep the native raster
+    // extent: stretching ceil-rounded dimensions back to the logical page size
+    // filters the pixels a second time and softens text, even at 100% zoom.
+    const double dpr = viewport()->devicePixelRatioF();
+    const QPointF offset(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    const auto origin = (pages[p].topLeft() - offset) * dpr;
+    const QPointF snapped(qRound(origin.x()) / dpr, qRound(origin.y()) / dpr);
+    return QRectF(snapped + offset, QSizeF(pixelSize(p)) / dpr);
+}
 QString PdfView::tileKey(int p, QSize s, QRect t) const {
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7")
         .arg(p)
@@ -323,7 +333,7 @@ void PdfView::schedule() {
     QVector<int> visiblePages;
     const double dpr = viewport()->devicePixelRatioF();
     for (int p = first; p < pages.size() && pages[p].top() < visible.bottom(); ++p) {
-        if (!pages[p].intersects(visible))
+        if (!rasterRect(p).intersects(visible))
             continue;
         visiblePages.push_back(p);
         const auto key = previewKey(p);
@@ -336,7 +346,8 @@ void PdfView::schedule() {
     }
     for (const int p : visiblePages) {
         const auto full = pixelSize(p);
-        const QRectF local = visible.intersected(pages[p]).translated(-pages[p].topLeft());
+        const auto raster = rasterRect(p);
+        const QRectF local = visible.intersected(raster).translated(-raster.topLeft());
         const QRect pixels = QRectF(local.topLeft() * dpr, local.size() * dpr)
                                  .toAlignedRect()
                                  .intersected(QRect(QPoint(), full));
@@ -452,7 +463,7 @@ void PdfView::paintEvent(QPaintEvent *) {
     bool paintedImage = false;
     for (int p = pageAtY(visible.top()); p < pages.size() && pages[p].top() < visible.bottom();
          ++p) {
-        const QRectF rect = pages[p].translated(-offset);
+        const QRectF rect = rasterRect(p).translated(-offset);
         if (!rect.intersects(viewport()->rect()))
             continue;
         painter.fillRect(rect, Qt::white);
@@ -461,9 +472,13 @@ void PdfView::paintEvent(QPaintEvent *) {
             painter.drawImage(rect, *image);
             paintedImage = true;
         }
+        // Sharp tiles already have one sample per physical screen pixel.
+        // Smooth filtering belongs only to the temporary low-resolution preview.
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
         const auto full = pixelSize(p);
         const double kx = rect.width() / full.width(), ky = rect.height() / full.height();
-        const QRectF local = visible.intersected(pages[p]).translated(-pages[p].topLeft());
+        const auto raster = rasterRect(p);
+        const QRectF local = visible.intersected(raster).translated(-raster.topLeft());
         const int x0 = std::max(0, int(local.left() / kx) / tileEdge * tileEdge),
                   y0 = std::max(0, int(local.top() / ky) / tileEdge * tileEdge);
         for (int y = y0; y < full.height() && y * ky <= local.bottom(); y += tileEdge)
