@@ -16,3 +16,7 @@ Release publication was reviewed and changed from immediate publication to draft
 The viewer still has no QtNetwork dependency. No startup or periodic network checks were introduced. The native installer handoff and its second SHA-256 check were reviewed and left intact.
 
 Remaining verification: Windows Qt 6.8.3 CI/package creation, publication via the new draft workflow, and installation from the user's existing copy. This does not claim a completed Windows update to 0.6.4.
+
+## Windows run 42470951844
+
+The run stopped in prepare-dependencies.ps1 at the initial Invoke-WebRequest with HTTP 504 Gateway Time-out. Compilation, tests, packaging and publication were not reached. The old log did not name the requested file, so it cannot establish which dependency URL failed. Dependency preparation now names each archive/URL, performs at most three complete download attempts with a 120-second timeout per attempt and 3/6-second delays, and removes partial files between attempts. SHA-256 failures remain terminal. A new manual Windows run on the updated main branch is required.
