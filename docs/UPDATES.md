@@ -56,3 +56,17 @@ Těla 3xx/chybových odpovědí nevstupují do obsahu ani SHA-256. Částečný 
 Workflow nejprve vytvoří draft a nahraje všechny přílohy. Teprve po úspěšném nahrání zveřejní vydání a označí je jako latest. Při selhání zůstane draft pro kontrolu; stávající stabilní verze se nepřepisují.
 
 Starší instalovaná verze tuto opravu dosud neobsahuje. Pokud při přechodu na 0.6.4 selže, je nutná jednorázová instalace nového balíčku přes současnou instalaci. Přesné ověření instalace ve Windows zůstává samostatným praktickým krokem.
+
+## 0.6.6 – přímé použití kontrolního součtu z GitHubu
+
+Nová kontrola nabízí instalátor přímo po ověření jména, velikosti a platného SHA-256 z metadat GitHub Release. Samostatný manifest se načítá jen při chybějícím digestu. Neprázdný neplatný digest není důvodem k vynechání ověření; celé vydání se odmítne. Povinná kontrola stažených bajtů/SHA-256 i druhé ověření nativním helperem se nemění.
+
+Aktualizační dialog je nově testován i se simulovaným síťovým správcem: metadata → nabídka bez manifestu → stažení → ověření, odmítnutí poškozených dat a zachování starší manifestové větve. Testy nic neinstalují. Chyba přenosu obsahuje fázi (kontrola vydání / manifest / instalátor) a hostitele skutečné odpovědi po přesměrování, nikoliv pouze počáteční adresu.
+
+Při zkoumání selhání 0.6.4 → 0.6.5 byl původní tok zopakován kódem Qt: metadata vydání prošla, samostatný manifest selhal přes běžnou i API cestu. Změna HTTP/2 na HTTP/1.1 chybu spolehlivě neodstranila; paralelní porovnání výchozího a identity kódování vrátilo v obou případech 503. Produkční nastavení těchto voleb se proto nemění. Pozorované odpovědi ukazují na nedostupnost části přenosové cesty; přesnou příčinu na uživatelově PC bez podrobnějšího záznamu určit nelze.
+
+Oprava odstraňuje jednu zbytečnou závislost na dostupnosti samostatného assetu. Nedokáže zaručit dostupnost GitHub API ani úložiště samotného instalátoru. Starý klient musí novou opravu nejprve získat; pokud přes něj přechod opět selže, je potřeba jednorázová instalace nového balíčku přes současnou instalaci.
+
+Při následné živé zkoušce aktualizačního okna se přenos instalátoru ukončil s Qt chybou 5. Zdroj Qt 6.8.3 v `_q_transferTimedOut()` volá `abort()`, takže tento typ časového limitu nemusí mít kód TimeoutError (4). Původní seznam opakovatelných chyb kód 5 neobsahoval. Nově je aktivní přenos s tímto výsledkem opakovatelný. Zrušení uživatelem je odlišeno odpojením odpovědi před abortem; vlastní bezpečnostní/velikostní/I/O chyby mají terminální příznak. Neotevřená odpověď se již nečte při dokončení.
+
+Zdroj ověření: https://raw.githubusercontent.com/qt/qtbase/v6.8.3/src/network/access/qnetworkreplyhttpimpl.cpp

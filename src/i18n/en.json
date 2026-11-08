@@ -189,5 +189,9 @@
   "Knihovny třetích stran": "Third-party libraries",
   "Licenční soubor nelze otevřít.": "Cannot open the license file.",
   "Stažení selhalo na %1 (HTTP %2, síťová chyba %3).": "Download failed at %1 (HTTP %2, network error %3).",
-  "Obnovuji přerušené stahování…": "Retrying the interrupted download…"
+  "Obnovuji přerušené stahování…": "Retrying the interrupted download…",
+  "Kontrola vydání": "Release check",
+  "Stažení manifestu": "Manifest download",
+  "Stažení instalátoru": "Installer download",
+  "Stažení selhalo na %1 (HTTP %2, Qt %3).": "Download failed at %1 (HTTP %2, Qt %3)."
 }

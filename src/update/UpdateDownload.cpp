@@ -10,7 +10,11 @@ bool transientFailure(int code, QNetworkReply::NetworkError error) {
     if (code >= 400)
         return code == 408 || code == 429 || code == 500 || code == 502 || code == 503 ||
                code == 504;
-    return error == QNetworkReply::ConnectionRefusedError ||
+    // Qt 6.8's transfer inactivity timer calls abort(), yielding code 5.
+    // Explicit cancellation disconnects the reply before aborting it, while
+    // policy/size/I/O aborts set failure, so those never enter this retry path.
+    return error == QNetworkReply::OperationCanceledError ||
+           error == QNetworkReply::ConnectionRefusedError ||
            error == QNetworkReply::RemoteHostClosedError ||
            error == QNetworkReply::HostNotFoundError || error == QNetworkReply::TimeoutError ||
            error == QNetworkReply::TemporaryNetworkFailureError ||
@@ -105,7 +109,7 @@ void UpdateDownload::begin() {
         }
     });
     connect(active, &QIODevice::readyRead, this, [this, active] { drain(active); });
-    connect(active, &QNetworkReply::finished, this, [this, active, url] {
+    connect(active, &QNetworkReply::finished, this, [this, active] {
         if (reply != active)
             return;
         drain(active);
@@ -113,6 +117,7 @@ void UpdateDownload::begin() {
             return;
         const auto error = active->error();
         const int code = active->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const auto responseHost = active->url().host();
         if (file.isOpen()) {
             if (!file.flush())
                 failure = file.errorString();
@@ -134,12 +139,12 @@ void UpdateDownload::begin() {
                 emit retrying();
                 return;
             }
-            emit failed(
-                !failure.isEmpty()
-                    ? failure
-                    : uiText(QStringLiteral("Stažení selhalo na %1 (HTTP %2, síťová chyba %3)."))
-                          .arg(url.host(), code ? QString::number(code) : QStringLiteral("—"),
-                               QString::number(int(error))));
+            emit failed(!failure.isEmpty()
+                            ? failure
+                            : uiText(QStringLiteral("Stažení selhalo na %1 (HTTP %2, Qt %3)."))
+                                  .arg(responseHost,
+                                       code ? QString::number(code) : QStringLiteral("—"),
+                                       QString::number(int(error))));
             return;
         }
         // Ownership passes to the caller; cancel/destruction must not remove a
@@ -149,7 +154,7 @@ void UpdateDownload::begin() {
     });
 }
 void UpdateDownload::drain(QNetworkReply *active) {
-    if (reply != active || !failure.isEmpty())
+    if (reply != active || !failure.isEmpty() || !active->isReadable())
         return;
     const auto bytes = active->readAll();
     // Redirect and error response bodies are not part of the requested asset.

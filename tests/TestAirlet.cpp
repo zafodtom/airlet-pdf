@@ -112,6 +112,25 @@ class TestAirlet final : public QObject {
         UpdateRelease parsed;
         QString error;
         QCOMPARE(parseUpdateRelease(release, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        // Current releases can be offered using the validated GitHub digest,
+        // without fetching the separate manifest. Older assets retain fallback.
+        QCOMPARE(parsed.sha256, hash);
+        auto withoutDigest = asset;
+        withoutDigest.remove("digest");
+        auto legacyRelease = release;
+        legacyRelease["assets"] = QJsonArray{withoutDigest, manifestAsset};
+        QCOMPARE(parseUpdateRelease(legacyRelease, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        QVERIFY(parsed.sha256.isEmpty());
+        QVERIFY(!parsed.manifestUrl.isEmpty());
+        for (const auto &badHash : {QString("sha256:bad"), QString("sha512:") + hash}) {
+            auto alteredDigest = asset;
+            alteredDigest["digest"] = badHash;
+            auto malformedRelease = release;
+            malformedRelease["assets"] = QJsonArray{alteredDigest, manifestAsset};
+            QCOMPARE(parseUpdateRelease(malformedRelease, "1.1.0", &parsed, &error),
+                     ReleaseState::Invalid);
+        }
+        QCOMPARE(parseUpdateRelease(release, "1.1.0", &parsed, &error), ReleaseState::Newer);
         const QJsonObject manifest{
             {"schema", 1},
             {"version", "1.2.0"},

@@ -1,5 +1,12 @@
 # Airlet PDF — changelog
 
+## 0.6.6 — remove an unnecessary update download
+
+- Use GitHub's validated installer SHA-256 from release metadata directly; fetch the separate manifest only for older assets without a digest.
+- Reject malformed nonempty asset digests.
+- Identify the failed update stage and actual response host after redirects.
+- Retry Qt transfer-timeout aborts while keeping explicit user cancellation final.
+
 ## 0.6.5 — update verification release
 
 - Version-only maintenance release to verify the integrated update from 0.6.4.

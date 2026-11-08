@@ -68,8 +68,14 @@ ReleaseState parseUpdateRelease(const QJsonObject &json, const QString &current,
                           ? qint64(bytes)
                           : -1;
             const auto digest = a["digest"].toString();
-            if (digest.startsWith("sha256:"))
+            if (!digest.isEmpty()) {
+                if (!QRegularExpression("^sha256:[0-9a-fA-F]{64}$").match(digest).hasMatch()) {
+                    *error = uiText(
+                        QStringLiteral("Nesouhlasí údaje nebo kontrolní součet aktualizace."));
+                    return ReleaseState::Invalid;
+                }
                 r->sha256 = digest.mid(7).toLower();
+            }
         }
     }
     if (manifests != 1 || installers != 1 || r->size <= 0 || r->size > 512LL * 1024 * 1024) {

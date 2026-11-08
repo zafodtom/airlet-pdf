@@ -53,6 +53,13 @@
 - Oddělené testy skutečného kódu přenosu se syntetickými odpověďmi; zrušení, přesměrování, TLS a částečné soubory.
 - Zveřejnění release až po nahrání příloh; Windows instalace nové opravy zbývá k ověření.
 
+## 0.6.6 – přímé ověření z metadat a časové limity
+
+- Platný SHA-256 z GitHub Release odstraňuje povinné další stažení manifestu; starší větev zůstává zachovaná.
+- Opravené opakování přenosového časového limitu hlášeného Qt kódem 5, odlišené od zrušení uživatelem.
+- Testy skutečného aktualizačního dialogu: nabídka bez manifestu, stažení, správný/chybný hash, legacy manifest.
+- Diagnostika fáze a cílového hostitele; Windows instalace a přechod na další verzi zbývají k ověření.
+
 ## Nyní nepřidávat
 
 - Benchmark, panel náhledů/záložek/historie navigace.

@@ -1,6 +1,11 @@
+#include "update/UpdateDialog.h"
 #include "update/UpdateDownload.h"
 #include <QCryptographicHash>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QLabel>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -98,6 +103,22 @@ class Network final : public QNetworkAccessManager {
 const QUrl
     primary("https://github.com/zafodtom/airlet-pdf/releases/download/v1.0.0/airlet-update.json");
 const QUrl fallback("https://api.github.com/repos/zafodtom/airlet-pdf/releases/assets/123");
+QJsonObject releaseMetadata(const QByteArray &payload, bool withDigest) {
+    const QString prefix = "https://github.com/zafodtom/airlet-pdf/releases/download/v1.0.0/";
+    QJsonObject installer{{"name", "AirletPDF-Setup-1.0.0-x64.exe"},
+                          {"browser_download_url", prefix + "AirletPDF-Setup-1.0.0-x64.exe"},
+                          {"size", payload.size()}};
+    if (withDigest)
+        installer["digest"] =
+            "sha256:" + QString::fromLatin1(
+                            QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
+    return {{"tag_name", "v1.0.0"},
+            {"draft", false},
+            {"prerelease", false},
+            {"assets",
+             QJsonArray{installer, QJsonObject{{"name", "airlet-update.json"},
+                                               {"browser_download_url", primary.toString()}}}}};
+}
 QByteArray contents(const QString &path) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly))
@@ -108,6 +129,66 @@ QByteArray contents(const QString &path) {
 class TestUpdateDownload final : public QObject {
     Q_OBJECT
   private slots:
+    void dialogUsesDigestAndVerifiesInstaller_data() {
+        QTest::addColumn<bool>("corrupt");
+        QTest::newRow("verified-installer") << false;
+        QTest::newRow("wrong-hash-is-rejected") << true;
+    }
+    void dialogUsesDigestAndVerifiesInstaller() {
+        QFETCH(bool, corrupt);
+        const QByteArray payload("installer test bytes");
+        auto actual = payload;
+        if (corrupt)
+            actual[0] = 'x';
+        Network network;
+        network.responses = {{200, QJsonDocument(releaseMetadata(payload, true)).toJson()},
+                             {200, actual}};
+        QTemporaryDir dir;
+        UpdateDialog dialog({{"version", "0.9.0"}, {"folder", dir.path()}}, &network);
+        dialog.show();
+        auto *button = dialog.findChild<QPushButton *>("downloadUpdate");
+        auto *status = dialog.findChild<QLabel *>("updateStatus");
+        QVERIFY(button && status);
+        QTRY_VERIFY(button->isEnabled());
+        QCOMPARE(network.requests.size(), 1); // No manifest fetch or dependency.
+        QCOMPARE(network.requests[0].url().path(),
+                 QString("/repos/zafodtom/airlet-pdf/releases/latest"));
+        QTest::mouseClick(button, Qt::LeftButton);
+        const auto path = dir.filePath("AirletPDF-Setup-1.0.0-x64.exe");
+        if (corrupt) {
+            QTRY_VERIFY(status->text().contains(QString::fromUtf8("součet")));
+            QVERIFY(!button->isEnabled());
+            QVERIFY(!QFile::exists(path));
+        } else {
+            QTRY_COMPARE(button->text(), QString::fromUtf8("Restartovat a aktualizovat"));
+            QVERIFY(button->isEnabled());
+            QCOMPARE(contents(path), payload);
+        }
+        QCOMPARE(network.requests.size(), 2);
+        QVERIFY(network.requests[1].url().path().endsWith("AirletPDF-Setup-1.0.0-x64.exe"));
+        // The install/confirmation button is deliberately not clicked.
+    }
+    void dialogRetainsLegacyManifest() {
+        const QByteArray payload("installer test bytes");
+        const auto hash = QString::fromLatin1(
+            QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
+        const QJsonObject manifest{
+            {"schema", 1},
+            {"version", "1.0.0"},
+            {"installer", QJsonObject{{"name", "AirletPDF-Setup-1.0.0-x64.exe"},
+                                      {"size", payload.size()},
+                                      {"sha256", hash}}}};
+        Network network;
+        network.responses = {{200, QJsonDocument(releaseMetadata(payload, false)).toJson()},
+                             {200, QJsonDocument(manifest).toJson()}};
+        QTemporaryDir dir;
+        UpdateDialog dialog({{"version", "0.9.0"}, {"folder", dir.path()}}, &network);
+        auto *button = dialog.findChild<QPushButton *>("downloadUpdate");
+        QVERIFY(button);
+        QTRY_VERIFY(button->isEnabled());
+        QCOMPARE(network.requests.size(), 2);
+        QCOMPARE(network.requests[1].url(), primary);
+    }
     void manifestFallback() {
         Network network;
         network.responses = {{504, "gateway error", QNetworkReply::UnknownServerError},
@@ -220,6 +301,19 @@ class TestUpdateDownload final : public QObject {
         QCOMPARE(network.requests.size(), 3);
         QVERIFY(failed[0][0].toString().contains("HTTP 504"));
     }
+    void reportsActualRedirectHost() {
+        Network network;
+        network.responses = {{404,
+                              {},
+                              QNetworkReply::ContentNotFoundError,
+                              QUrl("https://release-assets.githubusercontent.com/signed/asset")}};
+        UpdateDownload transfer(nullptr, &network);
+        QSignalSpy failed(&transfer, &UpdateDownload::failed);
+        transfer.start(primary, {}, 100);
+        QTRY_COMPARE(failed.size(), 1);
+        QVERIFY(failed[0][0].toString().contains("release-assets.githubusercontent.com"));
+        QVERIFY(failed[0][0].toString().contains("HTTP 404"));
+    }
     void tlsFailureIsNotRetried() {
         Network network;
         network.responses = {{0, {}, QNetworkReply::SslHandshakeFailedError}};
@@ -228,6 +322,17 @@ class TestUpdateDownload final : public QObject {
         transfer.start(primary, fallback, 100);
         QTRY_COMPARE(failed.size(), 1);
         QCOMPARE(network.requests.size(), 1);
+    }
+    void transferAbortRetries() {
+        Network network;
+        network.responses = {{0, {}, QNetworkReply::OperationCanceledError}, {200, "manifest"}};
+        UpdateDownload transfer(nullptr, &network);
+        QSignalSpy done(&transfer, &UpdateDownload::completed);
+        transfer.start(primary, fallback, 100);
+        QTRY_COMPARE(done.size(), 1);
+        QCOMPARE(network.requests.size(), 2);
+        QCOMPARE(network.requests[1].url(), fallback);
+        QCOMPARE(done[0][0].toByteArray(), QByteArray("manifest"));
     }
     void cancelDuringRetry() {
         Network network;
@@ -300,5 +405,5 @@ class TestUpdateDownload final : public QObject {
         QCOMPARE(done[0][0].toByteArray(), QByteArray("manifest"));
     }
 };
-QTEST_GUILESS_MAIN(TestUpdateDownload)
+QTEST_MAIN(TestUpdateDownload)
 #include "TestUpdateDownload.moc"
