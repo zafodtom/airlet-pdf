@@ -1,0 +1,22 @@
+********* Start testing of TestUpdateDownload *********
+Config: Using QtTest library 6.4.2, Qt 6.4.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 13.2.0), ubuntu 24.04
+PASS   : TestUpdateDownload::initTestCase()
+PASS   : TestUpdateDownload::manifestFallback()
+PASS   : TestUpdateDownload::unavailableDirectRouteFallsBack(forbidden-direct-route)
+PASS   : TestUpdateDownload::unavailableDirectRouteFallsBack(not-found-direct-route)
+PASS   : TestUpdateDownload::apiForbiddenIsNotRepeated()
+PASS   : TestUpdateDownload::metadataRetryUsesJson()
+PASS   : TestUpdateDownload::partialInstallerRestartsCleanly()
+PASS   : TestUpdateDownload::redirectBodyExcluded()
+PASS   : TestUpdateDownload::blockedRedirect()
+PASS   : TestUpdateDownload::boundedRetriesAndHttpStatus()
+PASS   : TestUpdateDownload::tlsFailureIsNotRetried()
+PASS   : TestUpdateDownload::cancelDuringRetry()
+PASS   : TestUpdateDownload::cancelPartialFile()
+PASS   : TestUpdateDownload::oversizedResponse(memory)
+PASS   : TestUpdateDownload::oversizedResponse(file)
+PASS   : TestUpdateDownload::existingFileIsPreserved()
+PASS   : TestUpdateDownload::restartAfterFailure()
+PASS   : TestUpdateDownload::cleanupTestCase()
+Totals: 18 passed, 0 failed, 0 skipped, 0 blacklisted, 9404ms
+********* Finished testing of TestUpdateDownload *********

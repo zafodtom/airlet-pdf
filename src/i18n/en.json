@@ -187,5 +187,7 @@
   "Web projektu": "Project website",
   "Licence": "License",
   "Knihovny třetích stran": "Third-party libraries",
-  "Licenční soubor nelze otevřít.": "Cannot open the license file."
+  "Licenční soubor nelze otevřít.": "Cannot open the license file.",
+  "Stažení selhalo na %1 (HTTP %2, síťová chyba %3).": "Download failed at %1 (HTTP %2, network error %3).",
+  "Obnovuji přerušené stahování…": "Retrying the interrupted download…"
 }

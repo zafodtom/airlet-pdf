@@ -7,7 +7,7 @@
 [Setup]
 AppId={{32E19141-5E18-43E8-BCB2-793F563DE065}
 AppName=Airlet PDF
-AppVersion=0.6.3
+AppVersion=0.6.4
 AppPublisher=Trimenor
 AppPublisherURL=https://github.com/zafodtom/airlet-pdf
 AppSupportURL=https://github.com/zafodtom/airlet-pdf/issues
@@ -19,7 +19,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=AirletPDF-Setup-0.6.3-x64
+OutputBaseFilename=AirletPDF-Setup-0.6.4-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

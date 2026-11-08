@@ -19,6 +19,8 @@ try {
     $testExitCode = $LASTEXITCODE
     $testLog = Join-Path $build 'airlet-tests.txt'
     if (Test-Path $testLog) { Get-Content $testLog }
+    $updateTestLog = Join-Path $build 'airlet-update-tests.txt'
+    if (Test-Path $updateTestLog) { Get-Content $updateTestLog }
     if ($testExitCode -ne 0) { throw 'Testy selhaly; viz podrobný výstup výše.' }
     Remove-Item Env:QT_QPA_PLATFORM -ErrorAction SilentlyContinue
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
@@ -45,7 +47,7 @@ try {
     Copy-Item $deps.QtSource "$stage\sources\qtbase-everywhere-src-6.8.3.tar.xz"
     Copy-Item "$root\dependencies.lock.json" $stage
     New-Item -ItemType Directory -Force $dist | Out-Null
-    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.6.3-x64-portable.zip" -Force
+    Compress-Archive -Path "$stage\*" -DestinationPath "$dist\AirletPDF-0.6.4-x64-portable.zip" -Force
     if (!$SkipInstaller) {
         $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
         if (!(Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }
@@ -53,9 +55,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Inno Setup selhal.' }
     }
     if (!$SkipInstaller) {
-        $installer = Get-Item "$dist\AirletPDF-Setup-0.6.3-x64.exe"
+        $installer = Get-Item "$dist\AirletPDF-Setup-0.6.4-x64.exe"
         $manifest = [ordered]@{
-            schema = 1; version = '0.6.3'; installer = [ordered]@{
+            schema = 1; version = '0.6.4'; installer = [ordered]@{
                 name = $installer.Name
                 size = $installer.Length
                 sha256 = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()

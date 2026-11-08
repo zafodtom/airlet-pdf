@@ -117,6 +117,26 @@ class TestAirlet final : public QObject {
             {"version", "1.2.0"},
             {"installer", QJsonObject{{"name", installer}, {"size", 1024}, {"sha256", hash}}}};
         QVERIFY(validateUpdateManifest(manifest, &parsed, &error));
+        auto apiInstaller = asset, apiManifest = manifestAsset;
+        const QString apiPrefix =
+            "https://api.github.com/repos/zafodtom/airlet-pdf/releases/assets/";
+        apiInstaller["url"] = apiPrefix + "123";
+        apiManifest["url"] = apiPrefix + "124";
+        auto withApi = release;
+        withApi["assets"] = QJsonArray{apiInstaller, apiManifest};
+        QCOMPARE(parseUpdateRelease(withApi, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        QCOMPARE(parsed.installerApiUrl, QUrl(apiPrefix + "123"));
+        QCOMPARE(parsed.manifestApiUrl, QUrl(apiPrefix + "124"));
+        for (const QString &badUrl :
+             {apiPrefix + "0", apiPrefix + "123?x=1",
+              QString("https://api.github.com/repos/other/repo/releases/assets/123"),
+              QString("http://api.github.com/repos/zafodtom/airlet-pdf/releases/assets/123")}) {
+            apiManifest["url"] = badUrl;
+            withApi["assets"] = QJsonArray{apiInstaller, apiManifest};
+            QCOMPARE(parseUpdateRelease(withApi, "1.1.0", &parsed, &error), ReleaseState::Invalid);
+        }
+        QCOMPARE(parseUpdateRelease(release, "1.1.0", &parsed, &error), ReleaseState::Newer);
+        QVERIFY(validateUpdateManifest(manifest, &parsed, &error));
         QCOMPARE(parsed.sha256, hash);
         QCOMPARE(parseUpdateRelease(release, "1.2.0", &parsed, &error), ReleaseState::Current);
         QCOMPARE(parseUpdateRelease(release, "2.0.0", &parsed, &error), ReleaseState::Current);

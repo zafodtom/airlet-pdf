@@ -1,5 +1,12 @@
 # Airlet PDF — changelog
 
+## 0.6.4 — more reliable manual updates
+
+- Fall back to GitHub's asset API for interrupted manifest and installer downloads; use bounded retries for temporary errors.
+- Restart partial downloads cleanly, with HTTP status reporting and cancellation during retry delays.
+- Exclude redirect/error response bodies from downloaded assets and preserve existing files.
+- Publish a release only after all assets have uploaded successfully.
+
 ## 0.6.3 — sharper page display
 
 - Present sharp PDF tiles at native screen resolution without a second scaling/filtering pass.

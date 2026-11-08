@@ -47,6 +47,12 @@
 - Syntetické porovnání skutečně zobrazených pixelů s přímým rastrem PDFium, neceločíselný zoom, otočení a více dlaždic.
 - Windows sestavení a kontrola výsledku na uživatelském dokumentu zbývají k ověření.
 
+## 0.6.4 – odolnější aktualizace
+
+- Omezené opakování a API záloha pro manifest i instalátor; správný Accept a číselná diagnostika HTTP/sítě.
+- Oddělené testy skutečného kódu přenosu se syntetickými odpověďmi; zrušení, přesměrování, TLS a částečné soubory.
+- Zveřejnění release až po nahrání příloh; Windows instalace nové opravy zbývá k ověření.
+
 ## Nyní nepřidávat
 
 - Benchmark, panel náhledů/záložek/historie navigace.

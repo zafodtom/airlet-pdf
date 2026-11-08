@@ -44,12 +44,24 @@ ReleaseState parseUpdateRelease(const QJsonObject &json, const QString &current,
             *error = uiText(QStringLiteral("Neplatná adresa aktualizace."));
             return ReleaseState::Invalid;
         }
+        const QUrl api(a["url"].toString());
+        if (!api.isEmpty() &&
+            (!allowedUpdateUrl(api) || api.host() != "api.github.com" ||
+             !QRegularExpression("^/repos/zafodtom/airlet-pdf/releases/assets/[1-9][0-9]*$")
+                  .match(api.path())
+                  .hasMatch() ||
+             !api.query().isEmpty() || !api.fragment().isEmpty())) {
+            *error = uiText(QStringLiteral("Neplatná adresa aktualizace."));
+            return ReleaseState::Invalid;
+        }
         if (name == "airlet-update.json") {
             ++manifests;
             r->manifestUrl = url;
+            r->manifestApiUrl = api;
         } else {
             ++installers;
             r->installerUrl = url;
+            r->installerApiUrl = api;
             const double bytes = a["size"].toDouble(-1);
             r->size = std::isfinite(bytes) && bytes >= 1 && bytes <= 512. * 1024 * 1024 &&
                               std::floor(bytes) == bytes

@@ -4,7 +4,7 @@
 namespace airlet {
 struct UpdateRelease {
     QString version, installerName, sha256;
-    QUrl manifestUrl, installerUrl;
+    QUrl manifestUrl, installerUrl, manifestApiUrl, installerApiUrl;
     qint64 size = 0;
 };
 enum class ReleaseState { Invalid, Current, Newer };

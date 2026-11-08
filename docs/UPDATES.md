@@ -44,3 +44,15 @@ Běh 41513538961 na commitu d1659b7 prošel kompilací jádra, prohlížeče i s
 ### 0.6.1 – lokální ověření
 
 Linux Release: 66 QtTest případů prošlo při běžném i simulovaném 200% měřítku. Protokoly jsou v docs/validation/0.6.1. Nová kontrola ověřuje výchozí celou stránku v okně, označení režimu při zoomu i po opětovném otevření a dostupnost společného přepínače pokračování na liště i v menu. Windows sestavení a skutečná instalace aktualizace 0.6.0 → 0.6.1 zůstávají k ověření.
+
+## 0.6.4 – odolnost stahování
+
+Při kontrole hlášeného selhání 0.6.2 → 0.6.3 vracela běžná adresa manifestu HTTP 504, zatímco API assetu vracelo správná data. Původní dialog HTTP kód nezobrazoval, proto přesný stav z uživatelova PC nelze zpětně prokázat. Úspěšná aktualizace 0.6.1 → 0.6.2 tím není zpochybněna.
+
+Aktualizátor nově při dočasné chybě zkusí API stejného assetu z ověřených metadat vydání. Posílá pro něj Accept: application/octet-stream; pro metadata vydání používá JSON. Počty pokusů jsou omezené: běžná adresa, API a nejvýše jedno další API opakování; bez API zálohy nejvýše dva pokusy. Mezi pokusy je jednorázové čekání 1 s. Při 403/404 na běžné assetové adrese se jednou vyzkouší API stejného veřejného assetu; 403 z API se už neopakuje. Časový limit bez přenosu zůstává 30 s, přesměrování nejvýše osm, HTTPS a seznam povolených hostů zůstávají vynucené. Chyby TLS, místního zápisu, limitu a kontrolního součtu se automaticky neopakují.
+
+Těla 3xx/chybových odpovědí nevstupují do obsahu ani SHA-256. Částečný vlastní soubor se před opakováním zavře a odstraní; nový pokus resetuje hash i počítadla. Existující soubor, který se nepodaří otevřít přes NewOnly, se nemaže. Zrušení ukončí aktivní odpověď i čekající opakování. Instalace stále vyžaduje ověřenou velikost/SHA-256 a potvrzení uživatele; nativní helper před spuštěním znovu ověří skutečný soubor.
+
+Workflow nejprve vytvoří draft a nahraje všechny přílohy. Teprve po úspěšném nahrání zveřejní vydání a označí je jako latest. Při selhání zůstane draft pro kontrolu; stávající stabilní verze se nepřepisují.
+
+Starší instalovaná verze tuto opravu dosud neobsahuje. Pokud při přechodu na 0.6.4 selže, je nutná jednorázová instalace nového balíčku přes současnou instalaci. Přesné ověření instalace ve Windows zůstává samostatným praktickým krokem.
