@@ -60,6 +60,13 @@
 - Testy skutečného aktualizačního dialogu: nabídka bez manifestu, stažení, správný/chybný hash, legacy manifest.
 - Diagnostika fáze a cílového hostitele; Windows instalace a přechod na další verzi zbývají k ověření.
 
+## 0.7.0 – samostatná PDF z obrázků
+
+- Soubor → PDF z obrázků: společný dokument nebo jeden obrázek → jedno PDF.
+- Názvy podle originálů, zvolená cílová složka, kontrola kolizí celé dávky, žádné přepisování.
+- Sdílené nastavení velikosti stránky a DPI; průběh a zrušení v samostatném procesu.
+- Dokončená PDF zůstávají při zrušení/chybě; nedokončený soubor je pouze v pracovní složce.
+
 ## Nyní nepřidávat
 
 - Benchmark, panel náhledů/záložek/historie navigace.

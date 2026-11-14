@@ -44,6 +44,7 @@ class Task final : public QObject {
     QByteArray buffer;
     QString error;
     bool success = false, cancelled = false;
+    int completed = 0;
     std::unique_ptr<QTemporaryDir> temporary;
     QPointer<QProgressDialog> progress;
     std::function<void(QJsonObject)> record;
@@ -100,6 +101,8 @@ class Task final : public QObject {
                 error = o["error"].toString();
             if (o["success"].toBool())
                 success = true;
+            if (o.contains("completed"))
+                completed = o["completed"].toInt();
             if (progress && o.contains("completed")) {
                 progress->setMaximum(o["total"].toInt());
                 progress->setValue(o["completed"].toInt());
@@ -248,10 +251,12 @@ class DocumentTools::State {
                     QStringLiteral("Nejprve dokončete nebo zrušte předchozí tisk či tvorbu PDF.")));
             return;
         }
+        const bool separate = job["mode"].toString() == "images" && job["separate"].toBool();
         operation = new Task(window);
         if (!target.isEmpty()) {
-            operation->temporary = std::make_unique<QTemporaryDir>(
-                QDir(QFileInfo(target).absolutePath()).filePath(".airlet-job-XXXXXX"));
+            const auto folder = separate ? target : QFileInfo(target).absolutePath();
+            operation->temporary =
+                std::make_unique<QTemporaryDir>(QDir(folder).filePath(".airlet-job-XXXXXX"));
             if (!operation->temporary->isValid()) {
                 delete operation;
                 operation = nullptr;
@@ -269,16 +274,25 @@ class DocumentTools::State {
         task->progress->setAutoClose(false);
         task->progress->setAutoReset(false);
         connect(task->progress, &QProgressDialog::canceled, task, [task] { task->cancel(); });
-        task->done = [this, title, target](bool ok, QString error) {
+        task->done = [this, title, target, separate, task](bool ok, QString error) {
             operation = nullptr;
             if (ok)
                 QMessageBox::information(
                     window, title,
-                    target.isEmpty()
+                    separate ? uiText(QStringLiteral("Vytvořeno %1 PDF ve složce:\n%2"))
+                                   .arg(task->completed)
+                                   .arg(target)
+                    : target.isEmpty()
                         ? uiText(QStringLiteral("Dokument byl předán tiskárně."))
                         : uiText(QStringLiteral("PDF bylo vytvořeno:\n%1")).arg(target));
-            else
+            else {
+                if (separate && task->completed > 0)
+                    error += uiText(QStringLiteral(
+                                        "\nDokončených PDF: %1. Zůstala uložená ve složce:\n%2"))
+                                 .arg(task->completed)
+                                 .arg(target);
                 QMessageBox::warning(window, title, error);
+            }
         };
         task->progress->show();
         task->start(job);
@@ -443,7 +457,7 @@ void DocumentTools::imagesPdf() {
               [&](const QString &a, const QString &b) { return order.compare(a, b) < 0; });
     QDialog dialog(d->window);
     dialog.setWindowTitle(uiText(QStringLiteral("PDF z obrázků")));
-    dialog.resize(600, 470);
+    dialog.resize(600, 510);
     QVBoxLayout layout(&dialog);
     QLabel hint(uiText(QStringLiteral("Jeden obrázek = jedna stránka. Pořadí upravte tažením.")));
     layout.addWidget(&hint);
@@ -476,6 +490,17 @@ void DocumentTools::imagesPdf() {
     connect(&remove, &QPushButton::clicked, &dialog,
             [&] { delete list.takeItem(list.currentRow()); });
     QFormLayout form;
+    QComboBox outputMode;
+    outputMode.setObjectName("imagesPdfOutputMode");
+    outputMode.addItems({uiText(QStringLiteral("Jedno společné PDF")),
+                         uiText(QStringLiteral("Samostatné PDF pro každý obrázek"))});
+    form.addRow(uiText(QStringLiteral("Výstup:")), &outputMode);
+    connect(&outputMode, qOverload<int>(&QComboBox::currentIndexChanged), &hint, [&](int mode) {
+        hint.setText(
+            mode == 0
+                ? uiText(QStringLiteral("Jeden obrázek = jedna stránka. Pořadí upravte tažením."))
+                : uiText(QStringLiteral("Každý obrázek vytvoří vlastní PDF se stejným názvem.")));
+    });
     QComboBox paper;
     paper.addItems({uiText(QStringLiteral("Podle obrázku (bez okrajů)")),
                     uiText(QStringLiteral("A4 na výšku (okraje 10 mm)")),
@@ -494,22 +519,33 @@ void DocumentTools::imagesPdf() {
     connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() != QDialog::Accepted || !list.count())
         return;
-    auto target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Uložit nové PDF")),
-                                               {}, QStringLiteral("PDF (*.pdf)"), nullptr,
-                                               QFileDialog::DontConfirmOverwrite);
-    if (target.isEmpty())
-        return;
-    if (!target.endsWith(".pdf", Qt::CaseInsensitive))
-        target += ".pdf";
-    if (QFileInfo::exists(target)) {
-        QMessageBox::warning(d->window, uiText(QStringLiteral("PDF z obrázků")),
-                             uiText(QStringLiteral("Soubor již existuje. Zvolte nový název.")));
-        return;
+    const bool separate = outputMode.currentIndex() == 1;
+    QString target;
+    if (separate) {
+        target = QFileDialog::getExistingDirectory(
+            d->window, uiText(QStringLiteral("Vybrat složku pro samostatné PDF")),
+            QFileInfo(files.first()).absolutePath());
+        if (target.isEmpty())
+            return;
+    } else {
+        target = QFileDialog::getSaveFileName(d->window, uiText(QStringLiteral("Uložit nové PDF")),
+                                              {}, QStringLiteral("PDF (*.pdf)"), nullptr,
+                                              QFileDialog::DontConfirmOverwrite);
+        if (target.isEmpty())
+            return;
+        if (!target.endsWith(".pdf", Qt::CaseInsensitive))
+            target += ".pdf";
+        if (QFileInfo::exists(target)) {
+            QMessageBox::warning(d->window, uiText(QStringLiteral("PDF z obrázků")),
+                                 uiText(QStringLiteral("Soubor již existuje. Zvolte nový název.")));
+            return;
+        }
     }
     QJsonArray images;
     for (int i = 0; i < list.count(); ++i)
         images.append(list.item(i)->data(Qt::UserRole).toString());
     d->run({{"mode", "images"},
+            {"separate", separate},
             {"images", images},
             {"dpi", dpi.value()},
             {"paper", paper.currentIndex()}},

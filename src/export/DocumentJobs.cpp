@@ -12,10 +12,12 @@
 #include <QPainter>
 #include <QPdfWriter>
 #include <QPrinter>
+#include <QSet>
 #include <QTemporaryFile>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 
 namespace airlet {
 static void report(const QJsonObject &o) {
@@ -31,18 +33,12 @@ static QRectF fitRect(QSizeF size, QRectF area) {
     size.scale(area.size(), Qt::KeepAspectRatio);
     return {area.center() - QPointF(size.width() / 2, size.height() / 2), size};
 }
-static int imagesPdf(const QJsonObject &job) {
-    const auto files = job["images"].toArray();
-    const auto target = job["output"].toString();
-    const int dpi = job["dpi"].toInt(150), paper = job["paper"].toInt();
-    if (files.isEmpty() || files.size() > 10000 || dpi < 72 || dpi > 600 || paper < 0 ||
-        paper > 2 || target.isEmpty())
-        return fail(uiText(QStringLiteral("Neplatné parametry obrázků.")));
-    if (QFileInfo::exists(target))
-        return fail(uiText(QStringLiteral("Výstup již existuje. Zvolte nový název.")));
-    QTemporaryFile file(QDir(job["temporary"].toString()).filePath("images-XXXXXX.part"));
+static QString createImagesPdf(const QJsonArray &files, const QString &target,
+                               const QString &temporary, int dpi, int paper,
+                               const std::function<void(int)> &progress = {}) {
+    QTemporaryFile file(QDir(temporary).filePath("images-XXXXXX.part"));
     if (!file.open())
-        return fail(file.errorString());
+        return file.errorString();
     QImageReader::setAllocationLimit(256);
     {
         QPdfWriter writer(&file);
@@ -56,15 +52,14 @@ static int imagesPdf(const QJsonObject &job) {
             const auto size = reader.size();
             if (!size.isValid() || size.width() > 32768 || size.height() > 32768 ||
                 qint64(size.width()) * size.height() > 64LL * 1024 * 1024)
-                return fail(
-                    uiText(QStringLiteral(
-                               "Obrázek %1 má neplatné rozměry nebo přesahuje 64 megapixelů."))
-                        .arg(i + 1));
+                return uiText(QStringLiteral(
+                                  "Obrázek %1 má neplatné rozměry nebo přesahuje 64 megapixelů."))
+                    .arg(i + 1);
             auto image = reader.read();
             if (image.isNull())
-                return fail(uiText(QStringLiteral("Obrázek %1 nelze načíst: %2"))
-                                .arg(i + 1)
-                                .arg(reader.errorString()));
+                return uiText(QStringLiteral("Obrázek %1 nelze načíst: %2"))
+                    .arg(i + 1)
+                    .arg(reader.errorString());
             const QPageSize pageSize =
                 paper == 0 ? QPageSize(QSizeF(image.size()) * (72. / dpi), QPageSize::Point)
                            : QPageSize(QPageSize::A4);
@@ -73,27 +68,85 @@ static int imagesPdf(const QJsonObject &job) {
             if (!writer.setPageLayout(QPageLayout(pageSize, orientation,
                                                   QMarginsF(margin, margin, margin, margin),
                                                   QPageLayout::Millimeter)))
-                return fail(uiText(QStringLiteral("Nelze nastavit velikost stránky.")));
+                return uiText(QStringLiteral("Nelze nastavit velikost stránky."));
             if (i == 0) {
                 if (!painter.begin(&writer))
-                    return fail(uiText(QStringLiteral("Nelze vytvořit PDF.")));
+                    return uiText(QStringLiteral("Nelze vytvořit PDF."));
             } else if (!writer.newPage())
-                return fail(uiText(QStringLiteral("Nelze přidat stránku PDF.")));
+                return uiText(QStringLiteral("Nelze přidat stránku PDF."));
             const QRectF area(0, 0, writer.width(), writer.height());
             painter.fillRect(area, Qt::white);
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
             painter.drawImage(fitRect(image.size(), area), image);
-            report({{"completed", i + 1}, {"total", files.size()}});
+            if (progress)
+                progress(i + 1);
         }
         if (!painter.end())
-            return fail(uiText(QStringLiteral("PDF se nepodařilo dokončit.")));
+            return uiText(QStringLiteral("PDF se nepodařilo dokončit."));
     }
     if (!file.flush())
-        return fail(file.errorString());
+        return file.errorString();
+    // Use the owning QTemporaryFile to close its native handle on Windows.
+    // The final name becomes visible only for a complete PDF; no overwrite.
     if (!file.rename(target))
-        return fail(file.errorString());
+        return file.errorString();
     file.setAutoRemove(false);
-    report({{"success", true}});
+    return {};
+}
+static int imagesPdf(const QJsonObject &job) {
+    const auto files = job["images"].toArray();
+    const auto target = job["output"].toString(), temporary = job["temporary"].toString();
+    const bool separate = job["separate"].toBool();
+    const int dpi = job["dpi"].toInt(150), paper = job["paper"].toInt();
+    if (files.isEmpty() || files.size() > 10000 || dpi < 72 || dpi > 600 || paper < 0 ||
+        paper > 2 || target.isEmpty() || temporary.isEmpty())
+        return fail(uiText(QStringLiteral("Neplatné parametry obrázků.")));
+    if (!QDir(temporary).exists())
+        return fail(uiText(QStringLiteral("Nelze vytvořit pracovní složku.")));
+    QStringList outputs;
+    if (separate) {
+        const QDir directory(target);
+        if (!directory.exists())
+            return fail(uiText(QStringLiteral("Výstupní složka neexistuje.")));
+        QSet<QString> names;
+        // Check the entire destination plan before publishing the first file.
+        for (const auto &input : files) {
+            const auto base = QFileInfo(input.toString()).completeBaseName();
+            if (base.isEmpty() || base == "." || base == "..")
+                return fail(uiText(QStringLiteral("Neplatné parametry obrázků.")));
+            const auto name = base + ".pdf";
+            const auto key = name.normalized(QString::NormalizationForm_C).toCaseFolded();
+            if (names.contains(key))
+                return fail(uiText(QStringLiteral("Více obrázků má stejný výstupní název: %1. "
+                                                  "Změňte výběr nebo názvy obrázků."))
+                                .arg(name));
+            names.insert(key);
+            const auto path = directory.filePath(name);
+            const QFileInfo output(path);
+            if (output.exists() || output.isSymLink())
+                return fail(uiText(QStringLiteral("Soubor už existuje: %1. Vyberte jinou složku "
+                                                  "nebo přesuňte původní export."))
+                                .arg(name));
+            outputs.append(path);
+        }
+    } else {
+        if (QFileInfo::exists(target))
+            return fail(uiText(QStringLiteral("Výstup již existuje. Zvolte nový název.")));
+        outputs.append(target);
+    }
+    for (int i = 0; i < outputs.size(); ++i) {
+        const auto error = createImagesPdf(
+            separate ? QJsonArray{files[i]} : files, outputs[i], temporary, dpi, paper,
+            separate ? std::function<void(int)>()
+                     : [&](int done) { report({{"completed", done}, {"total", files.size()}}); });
+        if (!error.isEmpty())
+            return fail(separate ? uiText(QStringLiteral("Soubor %1: %2"))
+                                       .arg(QFileInfo(files[i].toString()).fileName(), error)
+                                 : error);
+        if (separate)
+            report({{"completed", i + 1}, {"total", files.size()}, {"file", outputs[i]}});
+    }
+    report({{"success", true}, {"files", outputs.size()}});
     return 0;
 }
 static int searchPdf(PdfEngine &engine, int count, const QJsonObject &job) {

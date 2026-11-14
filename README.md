@@ -18,7 +18,7 @@ The installer contains the necessary components and does not require administrat
 - View the whole page by default; adjust zoom, fit to width or rotate the view.
 - Search, select and copy text. Copy or save a rectangular selection of the page.
 - Export pages to PNG/JPG at a chosen resolution.
-- Print PDFs or create a PDF from multiple images (PNG/JPG/BMP).
+- Print PDFs or convert images (PNG/JPG/BMP) to PDF. In **File → PDF from images…**, choose **One combined PDF** or **Separate PDF for each image**. Separate PDFs keep the original base names (`photo.jpg` → `photo.pdf`) and are saved to a folder you choose. Existing PDFs and duplicate output names are rejected. Completed PDFs are kept if a later image fails or you cancel.
 - Optionally move to the next or previous PDF in the same folder. Enable **Continue between files** in the toolbar or Settings; it is off after every launch.
 - Switch between Czech and English in **Settings → Language** (restart required).
 
@@ -70,7 +70,7 @@ Instalátor obsahuje potřebné součásti a nevyžaduje práva správce. Zatím
 - Výchozí zobrazení celé stránky, nastavení přiblížení, přizpůsobení šířce a otočení pohledu.
 - Hledání, výběr a kopírování textu. Kopírování nebo uložení obdélníkového výřezu stránky.
 - Export stránek do PNG/JPG s volitelným rozlišením.
-- Tisk PDF a vytvoření PDF z více obrázků (PNG/JPG/BMP).
+- Tisk PDF a převod obrázků PNG/JPG/BMP do PDF. V **Soubor → PDF z obrázků…** vyberte **Jedno společné PDF** nebo **Samostatné PDF pro každý obrázek**. Samostatná PDF mají původní názvy (`fotka.jpg` → `fotka.pdf`) a ukládají se do zvolené složky. Existující PDF a shodné výstupní názvy se odmítnou. Při chybě dalšího obrázku nebo zrušení zůstanou dokončená PDF uložená.
 - Volitelné přecházení mezi PDF ve stejné složce. **Pokračovat dalším souborem** zapnete na liště nebo v Nastavení; po každém spuštění je vypnuto.
 - Přepnutí mezi češtinou a angličtinou v **Nastavení → Jazyk** (vyžaduje restart).
 

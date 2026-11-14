@@ -1,5 +1,12 @@
 # Airlet PDF — changelog
 
+## 0.7.0 — separate PDFs from images
+
+- Choose one combined PDF or a separate single-page PDF for every selected image.
+- Separate PDFs retain each image's base name and use a chosen destination folder.
+- Check all output names for collisions before converting; never overwrite existing files.
+- Keep completed PDFs on cancellation/error, with a completion count; publish each file only after it is complete.
+
 ## 0.6.6 — remove an unnecessary update download
 
 - Use GitHub's validated installer SHA-256 from release metadata directly; fetch the separate manifest only for older assets without a digest.

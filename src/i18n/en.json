@@ -193,5 +193,14 @@
   "Kontrola vydání": "Release check",
   "Stažení manifestu": "Manifest download",
   "Stažení instalátoru": "Installer download",
-  "Stažení selhalo na %1 (HTTP %2, Qt %3).": "Download failed at %1 (HTTP %2, Qt %3)."
+  "Stažení selhalo na %1 (HTTP %2, Qt %3).": "Download failed at %1 (HTTP %2, Qt %3).",
+  "Více obrázků má stejný výstupní název: %1. Změňte výběr nebo názvy obrázků.": "Multiple images have the same output name: %1. Change the selection or rename the images.",
+  "Soubor %1: %2": "File %1: %2",
+  "Vytvořeno %1 PDF ve složce:\n%2": "PDFs created: %1\nFolder:\n%2",
+  "\nDokončených PDF: %1. Zůstala uložená ve složce:\n%2": "\nCompleted PDFs: %1. They remain saved in folder:\n%2",
+  "Jedno společné PDF": "One combined PDF",
+  "Samostatné PDF pro každý obrázek": "Separate PDF for each image",
+  "Výstup:": "Output:",
+  "Každý obrázek vytvoří vlastní PDF se stejným názvem.": "Each image creates its own PDF with the same base name.",
+  "Vybrat složku pro samostatné PDF": "Choose folder for separate PDFs"
 }

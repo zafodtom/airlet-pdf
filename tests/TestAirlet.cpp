@@ -13,12 +13,14 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QComboBox>
 #include <QCryptographicHash>
 #include <QDialog>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileDialog>
 #include <QIcon>
 #include <QImage>
 #include <QJsonArray>
@@ -28,8 +30,10 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QPainter>
 #include <QProcess>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QStatusBar>
@@ -46,6 +50,30 @@
 using namespace airlet;
 static QString fixture(const char *name) {
     return QString::fromUtf8(FIXTURE_DIR) + "/" + name;
+}
+static QByteArray testFileBytes(const QString &path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return file.readAll();
+}
+static int runImageJob(QJsonObject job, QJsonArray *records = nullptr) {
+    QProcess worker;
+    worker.start(QString::fromUtf8(EXPORT_EXE), {});
+    if (!worker.waitForStarted(5000))
+        return -999;
+    worker.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + '\n');
+    worker.closeWriteChannel();
+    if (!worker.waitForFinished(20000)) {
+        worker.kill();
+        worker.waitForFinished();
+        return -998;
+    }
+    if (records)
+        for (const auto &line : worker.readAllStandardOutput().split('\n'))
+            if (!line.isEmpty())
+                records->append(QJsonDocument::fromJson(line).object());
+    return worker.exitStatus() == QProcess::NormalExit ? worker.exitCode() : -997;
 }
 static void wheel(PdfView &view, int angle, QPoint pixels = {},
                   Qt::KeyboardModifiers modifiers = {}, Qt::ScrollPhase phase = Qt::NoScrollPhase) {
@@ -576,6 +604,291 @@ class TestAirlet final : public QObject {
         cancelled.kill();
         QVERIFY(cancelled.waitForFinished(5000));
         QVERIFY(!QFile::exists(images["output"].toString()));
+    }
+    void separateImagePdfs_data() {
+        QTest::addColumn<int>("paper");
+        QTest::addColumn<int>("dpi");
+        QTest::newRow("image-size-72dpi") << 0 << 72;
+        QTest::newRow("image-size-144dpi") << 0 << 144;
+        QTest::newRow("A4-portrait") << 1 << 150;
+        QTest::newRow("A4-landscape") << 2 << 150;
+    }
+    void separateImagePdfs() {
+        QFETCH(int, paper);
+        QFETCH(int, dpi);
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkdir("out"));
+        QVERIFY(QDir(dir.path()).mkdir("work"));
+        const QDir out(dir.filePath("out"));
+        const auto redPath = dir.filePath(QString::fromUtf8("červená.01.JPG"));
+        const auto bluePath = dir.filePath(QString::fromUtf8("modrá.02.png"));
+        QImage red(120, 60, QImage::Format_RGB32), blue(60, 120, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        blue.fill(Qt::blue);
+        QVERIFY(red.save(redPath));
+        QVERIFY(blue.save(bluePath));
+        const auto originalRed = testFileBytes(redPath), originalBlue = testFileBytes(bluePath);
+        QJsonArray records;
+        QCOMPARE(runImageJob({{"mode", "images"},
+                              {"separate", true},
+                              {"images", QJsonArray{redPath, bluePath}},
+                              {"output", out.path()},
+                              {"temporary", dir.filePath("work")},
+                              {"dpi", dpi},
+                              {"paper", paper}},
+                             &records),
+                 0);
+        QCOMPARE(out.entryList({"*.pdf"}, QDir::Files).size(), 2);
+        QCOMPARE(records.last().toObject()["files"].toInt(), 2);
+        int completed = 0;
+        auto engine = makePdfiumEngine();
+        for (const auto &r : records)
+            if (r.toObject().contains("completed")) {
+                ++completed;
+                QCOMPARE(r.toObject()["completed"].toInt(), completed);
+                QCOMPARE(r.toObject()["total"].toInt(), 2);
+                QVERIFY(QFileInfo::exists(r.toObject()["file"].toString()));
+            }
+        QCOMPARE(completed, 2);
+        for (int i = 0; i < 2; ++i) {
+            const auto name =
+                i == 0 ? QString::fromUtf8("červená.01.pdf") : QString::fromUtf8("modrá.02.pdf");
+            const auto opened = engine->open(out.filePath(name), {});
+            QCOMPARE(opened.error, OpenError::None);
+            QCOMPARE(opened.pages, 1);
+            const auto size = engine->pageInfo(0).points;
+            const auto expected =
+                paper == 0 ? (i == 0 ? QSizeF(120, 60) : QSizeF(60, 120)) * (72. / dpi)
+                           : (paper == 1 ? QSizeF(595.28, 841.89) : QSizeF(841.89, 595.28));
+            const double tolerance = paper == 0 ? .2 : 1.;
+            QVERIFY(std::abs(size.width() - expected.width()) < tolerance);
+            QVERIFY(std::abs(size.height() - expected.height()) < tolerance);
+            const auto image = engine->render(
+                {0, 0, QSize(200, 200), QRect(0, 0, 200, 200), false, {}}, [] { return false; });
+            QVERIFY(!image.isNull());
+            const auto color = image.pixelColor(100, 100);
+            QVERIFY(i == 0 ? color.red() > 240 && color.blue() < 20
+                           : color.blue() > 240 && color.red() < 20);
+            engine->close();
+        }
+        QCOMPARE(testFileBytes(redPath), originalRed);
+        QCOMPARE(testFileBytes(bluePath), originalBlue);
+        QVERIFY(QDir(dir.filePath("work")).entryList(QDir::Files).isEmpty());
+    }
+    void separateImagePdfCollisions_data() {
+        QTest::addColumn<QString>("scenario");
+        for (const auto &name : {"existing", "duplicate-format", "duplicate-case", "source"})
+            QTest::newRow(name) << QString(name);
+    }
+    void separateImagePdfCollisions() {
+        QFETCH(QString, scenario);
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkdir("out"));
+        QVERIFY(QDir(dir.path()).mkdir("work"));
+        QDir out(dir.filePath("out"));
+        QImage image(80, 60, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const auto first = dir.filePath("a.png"), second = dir.filePath("b.jpg");
+        QVERIFY(image.save(first));
+        QVERIFY(image.save(second));
+        QJsonArray inputs{first, second};
+        QString protectedPath;
+        if (scenario == "existing") {
+            protectedPath = out.filePath("b.pdf");
+            QFile existing(protectedPath);
+            QVERIFY(existing.open(QIODevice::WriteOnly));
+            existing.write("existing output");
+        } else if (scenario.startsWith("duplicate")) {
+            const auto one = dir.filePath(scenario == "duplicate-case" ? "Foo.JPG" : "foo.jpg");
+            const auto two = dir.filePath("foo.png");
+            QVERIFY(image.save(one));
+            QVERIFY(image.save(two));
+            inputs = QJsonArray{first, one, two};
+        } else {
+            out = QDir(dir.path());
+            protectedPath = dir.filePath("input.pdf");
+            QVERIFY(image.save(protectedPath, "PNG"));
+            inputs = QJsonArray{protectedPath};
+        }
+        const auto original = testFileBytes(protectedPath);
+        QJsonArray records;
+        QCOMPARE(runImageJob({{"mode", "images"},
+                              {"separate", true},
+                              {"images", inputs},
+                              {"output", out.path()},
+                              {"temporary", dir.filePath("work")},
+                              {"dpi", 150},
+                              {"paper", 0}},
+                             &records),
+                 1);
+        for (const auto &r : records)
+            QVERIFY(!r.toObject().contains("completed"));
+        QVERIFY(!QFileInfo::exists(out.filePath("a.pdf")));
+        QCOMPARE(out.entryList({"*.pdf"}, QDir::Files).size(), protectedPath.isEmpty() ? 0 : 1);
+        if (!protectedPath.isEmpty())
+            QCOMPARE(testFileBytes(protectedPath), original);
+        QVERIFY(QDir(dir.filePath("work")).entryList(QDir::Files).isEmpty());
+    }
+    void separateImagePdfFailureKeepsCompletedFiles() {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkdir("out"));
+        QVERIFY(QDir(dir.path()).mkdir("work"));
+        QImage image(80, 60, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const auto first = dir.filePath("done.png");
+        QVERIFY(image.save(first));
+        QJsonArray records;
+        QCOMPARE(runImageJob({{"mode", "images"},
+                              {"separate", true},
+                              {"images", QJsonArray{first, dir.filePath("missing.png")}},
+                              {"output", dir.filePath("out")},
+                              {"temporary", dir.filePath("work")},
+                              {"dpi", 150},
+                              {"paper", 0}},
+                             &records),
+                 1);
+        QCOMPARE(records.first().toObject()["completed"].toInt(), 1);
+        QVERIFY(records.last().toObject()["error"].toString().contains("missing.png"));
+        auto engine = makePdfiumEngine();
+        const auto opened = engine->open(dir.filePath("out/done.pdf"), {});
+        QCOMPARE(opened.error, OpenError::None);
+        QCOMPARE(opened.pages, 1);
+        engine->close();
+        QCOMPARE(QDir(dir.filePath("out")).entryList(QDir::Files).size(), 1);
+        QVERIFY(QDir(dir.filePath("work")).entryList(QDir::Files).isEmpty());
+    }
+    void separateImagePdfCancellation() {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkdir("out"));
+        QVERIFY(QDir(dir.path()).mkdir("work"));
+        QImage image(2048, 2048, QImage::Format_RGB32);
+        image.fill(QColor(70, 120, 160));
+        const auto seed = dir.filePath("seed.png");
+        QVERIFY(image.save(seed));
+        QJsonArray inputs;
+        for (int i = 0; i < 40; ++i) {
+            const auto source = dir.filePath(QString("source-%1.png").arg(i));
+            QVERIFY(QFile::copy(seed, source));
+            inputs.append(source);
+        }
+        const QJsonObject job{{"mode", "images"},
+                              {"separate", true},
+                              {"images", inputs},
+                              {"output", dir.filePath("out")},
+                              {"temporary", dir.filePath("work")},
+                              {"dpi", 150},
+                              {"paper", 0}};
+        QProcess worker;
+        worker.start(QString::fromUtf8(EXPORT_EXE), {});
+        QVERIFY(worker.waitForStarted(5000));
+        worker.write(QJsonDocument(job).toJson(QJsonDocument::Compact) + '\n');
+        worker.closeWriteChannel();
+        QVERIFY(worker.waitForReadyRead(15000));
+        worker.kill();
+        QVERIFY(worker.waitForFinished(5000));
+        // The UI owns and removes this staging directory after killing the worker.
+        QVERIFY(QDir(dir.filePath("work")).removeRecursively());
+        const QDir out(dir.filePath("out"));
+        const auto outputs = out.entryList({"*.pdf"}, QDir::Files);
+        QVERIFY(!outputs.isEmpty());
+        QVERIFY(outputs.size() < 40);
+        auto engine = makePdfiumEngine();
+        for (const auto &name : outputs) {
+            const auto opened = engine->open(out.filePath(name), {});
+            QCOMPARE(opened.error, OpenError::None);
+            QCOMPARE(opened.pages, 1);
+            engine->close();
+        }
+        QCOMPARE(out.entryList(QDir::Files).size(), outputs.size());
+        for (const auto &source : inputs)
+            QVERIFY(QFileInfo::exists(source.toString()));
+    }
+    void separateImagePdfDialogFlow() {
+        const bool previous = QCoreApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        struct RestoreNativeDialogs {
+            bool previous;
+            ~RestoreNativeDialogs() {
+                QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs, previous);
+            }
+        } restore{previous};
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkdir("out"));
+        QImage image(80, 60, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const auto source = dir.filePath("photo.png"), output = dir.filePath("out");
+        QVERIFY(image.save(source));
+        MainWindow window;
+        window.show();
+        QAction *action = nullptr;
+        for (auto *candidate : window.findChildren<QAction *>())
+            if (candidate->text() == QString::fromUtf8("PDF z obrázků…"))
+                action = candidate;
+        QVERIFY(action);
+        int stage = 0;
+        QString summary;
+        QTimer automation;
+        automation.setInterval(20);
+        connect(&automation, &QTimer::timeout, &window, [&] {
+            auto *modal = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!modal)
+                return;
+            if (auto *picker = qobject_cast<QFileDialog *>(modal)) {
+                if (picker->fileMode() == QFileDialog::ExistingFiles && stage < 2) {
+                    picker->setDirectory(QFileInfo(source).absolutePath());
+                    picker->selectFile(source);
+                    if (auto *name = picker->findChild<QLineEdit *>("fileNameEdit")) {
+                        name->setFocus();
+                        name->setText(source);
+                    }
+                    stage = 1;
+                    QMetaObject::invokeMethod(picker, "accept", Qt::QueuedConnection);
+                } else if (picker->fileMode() == QFileDialog::Directory && stage >= 2 &&
+                           stage < 4) {
+                    picker->setDirectory(output);
+                    if (auto *name = picker->findChild<QLineEdit *>("fileNameEdit")) {
+                        name->setFocus();
+                        name->setText(output);
+                    }
+                    stage = 3;
+                    QMetaObject::invokeMethod(picker, "accept", Qt::QueuedConnection);
+                }
+            } else if (stage == 1) {
+                auto *mode = modal->findChild<QComboBox *>("imagesPdfOutputMode");
+                if (mode) {
+                    mode->setCurrentIndex(1);
+                    const auto outputFolder = qEnvironmentVariable("AIRLET_TEST_OUTPUT");
+                    if (!outputFolder.isEmpty())
+                        modal->grab().save(outputFolder + "/images-pdf-options.png");
+                    stage = 2;
+                    modal->accept();
+                }
+            } else if (stage == 3) {
+                if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                    summary = message->text();
+                    stage = 4;
+                    message->accept();
+                }
+            }
+        });
+        automation.start();
+        QTimer watchdog;
+        watchdog.setSingleShot(true);
+        connect(&watchdog, &QTimer::timeout, &window, [&] {
+            automation.stop();
+            if (auto *modal = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                modal->reject();
+        });
+        watchdog.start(15000);
+        action->trigger();
+        QTRY_COMPARE_WITH_TIMEOUT(stage, 4, 15000);
+        automation.stop();
+        QVERIFY(summary.contains(QString::fromUtf8("Vytvořeno 1 PDF")));
+        auto engine = makePdfiumEngine();
+        const auto opened = engine->open(QDir(output).filePath("photo.pdf"), {});
+        QCOMPARE(opened.error, OpenError::None);
+        QCOMPARE(opened.pages, 1);
+        QVERIFY(!QFileInfo::exists(dir.filePath("photo.pdf")));
     }
     void searchWindowLifecycle() {
         MainWindow window;
